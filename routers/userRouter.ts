@@ -19,6 +19,7 @@ interface IUser {
     cafeAddress: string|undefined; // если регается владелец кофейни
     openTime: string|undefined; // если регается владелец кофейни
     closeTime: string|undefined; // если регается владелец кофейни
+    providerCompanyName: string|undefined; // если регается поставщик
 }
 
 interface IUserAuth {
@@ -150,7 +151,15 @@ router.post("/register", async (req: Request, res: Response) => {
                 })
             break;
             case 'provider':
-
+                prisma.providerProfile.create({
+                    data: {
+                        name: userInfo.providerCompanyName || "",
+                        userId: user.id,
+                    }
+                })
+                .then(() => {
+                    console.log("Provider profile created for user " + userInfo.username);
+                });
             break;
             case 'regularUser':
 

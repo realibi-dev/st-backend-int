@@ -130,6 +130,15 @@ router.post("/register", (req, res) => __awaiter(void 0, void 0, void 0, functio
                 });
                 break;
             case 'provider':
+                db_1.default.providerProfile.create({
+                    data: {
+                        name: userInfo.providerCompanyName || "",
+                        userId: user.id,
+                    }
+                })
+                    .then(() => {
+                    console.log("Provider profile created for user " + userInfo.username);
+                });
                 break;
             case 'regularUser':
                 break;

@@ -48,6 +48,7 @@ model Product {
   temperature    String
   isActive       Boolean   @default(true)
   price          Float
+  oldPrice       Float?
   image          String?
   isNew          Boolean   @default(true)
   expirationDate String
@@ -75,10 +76,56 @@ model Branch {
 }
 
 model CafeOwnerUser {
-  id          Int    @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   companyName String
   userId      Int
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @default(now())
   deletedAt   DateTime?
+}
+
+model Cart {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now())
+  deletedAt   DateTime?
+}
+
+model CartItem {
+  id          Int       @id @default(autoincrement())
+  cartId      Int
+  productId   Int
+  quantity    Int
+  price       Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now())
+  deletedAt   DateTime?
+}
+
+model Order {
+  id            Int       @id @default(autoincrement())
+  orderNumber   String
+  totalPrice    Float
+  deliveryPrice Float     @default(0)
+  isCompleted   Boolean   @default(false)
+  userId        Int
+  branchId      Int
+  isPaid        Boolean   @default(false)
+  status        String    @default("main")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now())
+  deletedAt     DateTime?
+}
+
+model OrderItem {
+  id            Int       @id @default(autoincrement())
+  productId     Int
+  orderId       Int
+  price         Float
+  status        String    @default("main")
+  quantity      Int
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now())
+  deletedAt     DateTime?
 }
