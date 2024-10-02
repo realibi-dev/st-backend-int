@@ -6,6 +6,7 @@ import userRouter from "./routers/userRouter";
 import productRouter from "./routers/productRouter";
 import cartRouter from "./routers/cartRouter";
 import orderRouter from "./routers/orderRouter";
+import branchRouter from "./routers/branchRouter";
 import cors from "cors";
 
 dotenv.config();
@@ -20,5 +21,6 @@ app.use("/users", userRouter);
 app.use("/products", productRouter);
 app.use("/carts", cartRouter);
 app.use("/orders", orderRouter);
+app.use("/branches", branchRouter);
 
 app.listen(process.env.PORT);

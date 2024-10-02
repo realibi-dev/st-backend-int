@@ -1,6 +1,5 @@
 import { Router, Request, Response } from "express";
 import prisma from "./../prisma/db";
-import { ICartItem } from "./cartItemRouter";
 const router: Router = Router();
 
 interface IOrder {
@@ -13,6 +12,11 @@ interface IOrder {
     isPaid: boolean|undefined;
     status: string|undefined;
     cartId: number;
+}
+
+interface IStatisticsSettings {
+    startDate: string;
+    endDate: string;
 }
 
 router.get("/", (req: Request, res: Response) => {
@@ -133,6 +137,69 @@ router.delete("/:id", (req: Request, res: Response) => {
         console.error(error);
         res.status(500).send("Server error. Please try later");
     }
+})
+
+router.post("/statistics", async (req: Request, res: Response) => {
+    const statisticsSettings: IStatisticsSettings = req.body;
+
+    let orderItems: any = await prisma.orderItem.findMany({
+        where: {
+            AND: [
+                {
+                    deletedAt: null,
+                },
+                {
+                    createdAt: {
+                        gt: new Date(statisticsSettings.startDate),
+                    },
+                },
+                {
+                    createdAt: {
+                        lt: new Date(statisticsSettings.endDate),
+                    },
+                }
+            ],
+        }
+    });
+
+    const products = await prisma.product.findMany({
+        where: {
+            id: {
+                in: orderItems.map((item: any) => item.productId), // [3, 2, 1]
+            }
+        }
+    });
+
+    orderItems = orderItems.map((item: any) => {
+        return {
+            ...item,
+            productName: products.find(product => product.id === item.productId)?.name,
+        }
+    })
+
+    const uniqueProductIds = [...new Set(orderItems.map((item: any) => item.productId))];
+    const uniqueProducts = uniqueProductIds.map(productId => {
+        const totalQuantity = orderItems.filter((orderItem: any) => orderItem.productId === productId).reduce((acc: any, item: any) => {
+            return acc + item.quantity;
+        }, 0);
+
+        const totalPriceSum = orderItems.filter((orderItem: any) => orderItem.productId === productId).reduce((acc: any, item: any) => {
+            return acc + (item.price * item.quantity);
+        }, 0);
+        
+        return {
+            ...orderItems.find((orderItem: any) => orderItem.productId === productId),
+            quantity: totalQuantity,
+            priceSum: totalPriceSum,
+        }
+    })
+
+    res.status(200).send({
+        products: uniqueProducts,
+        totalSum: uniqueProducts.reduce((acc: any, item: any) => {
+            return acc + item.priceSum
+        }, 0),
+    });
 })
 
 export default router;
