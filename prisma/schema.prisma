@@ -129,3 +129,13 @@ model OrderItem {
   updatedAt     DateTime  @default(now())
   deletedAt     DateTime?
 }
+
+model ProductNewPrice {
+  id            Int       @id @default(autoincrement())
+  userId        Int
+  productId     Int
+  price         Float
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now())
+  deletedAt     DateTime?
+}

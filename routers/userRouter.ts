@@ -36,6 +36,10 @@ router.get("/", middlewares.checkAdmin, (req: Request, res: Response) => {
         })
         .then((data) => {
             res.status(200).send(data);
+        })
+        .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     } catch (error) {
         console.error(error);
@@ -55,6 +59,10 @@ router.get("/:id", (req: Request, res: Response) => {
         })
         .then((data) => {
             res.status(200).send(data);
+        })
+        .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     } catch (error) {
         console.error(error);
@@ -149,6 +157,10 @@ router.post("/register", async (req: Request, res: Response) => {
                 .then(() => {
                     console.log("Branch created for user " + userInfo.username);
                 })
+                .catch((err) => {
+                    console.error(err);
+                    res.status(500).send("Server error. Please try later");
+                });
             break;
             case 'provider':
                 prisma.providerProfile.create({
@@ -159,6 +171,10 @@ router.post("/register", async (req: Request, res: Response) => {
                 })
                 .then(() => {
                     console.log("Provider profile created for user " + userInfo.username);
+                })
+                .catch((err) => {
+                    console.error(err);
+                    res.status(500).send("Server error. Please try later");
                 });
             break;
             case 'regularUser':
@@ -188,6 +204,10 @@ router.delete("/:id", (req: Request, res: Response) => {
         })
         .then((data) => {
             res.status(200).send("User deleted");
+        })
+        .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     } catch (error) {
         console.error(error);

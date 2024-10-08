@@ -15,6 +15,10 @@ router.get("/", (req: Request, res: Response) => {
         })
         .then((data) => {
             res.status(200).send(data);
+        })
+        .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     } catch (error) {
         console.error(error);
@@ -41,6 +45,10 @@ router.get("/:id", (req: Request, res: Response) => {
             });
 
             res.status(200).send({ ...data, items: cartItems });
+        })
+        .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     } catch (error) {
         console.error(error);
@@ -56,8 +64,11 @@ router.post("/", (req: Request, res: Response) => {
         })
         .then(() => {
             res.status(201).send("Cart created");
+        })
+        .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
-
     } catch (error) {
         console.error(error);
         res.status(500).send("Server error. Please try later");

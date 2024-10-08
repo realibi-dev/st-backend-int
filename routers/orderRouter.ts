@@ -26,6 +26,10 @@ router.get("/", (req: Request, res: Response) => {
                 deletedAt: null,
             }
         })
+        .catch(err => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
+        })
         .then((data) => {
             res.status(200).send(data);
         });
@@ -36,9 +40,9 @@ router.get("/", (req: Request, res: Response) => {
 })
 
 router.get("/:id", (req: Request, res: Response) => {
-    const id = +req.params.id;
-
     try {
+        const id = +req.params.id;
+
         prisma.order.findFirst({
             where: {
                 deletedAt: null,
@@ -47,7 +51,11 @@ router.get("/:id", (req: Request, res: Response) => {
         })
         .then((data) => {
             res.status(200).send(data);
-        });
+        })
+        .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
+        })
     } catch (error) {
         console.error(error);
         res.status(500).send("Server error. Please try later");
@@ -102,6 +110,10 @@ router.post("/", async (req: Request, res: Response) => {
                 }
             });
             res.status(201).send("Order created");
+        })
+        .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     } catch (error) {
         console.error(error);
@@ -132,6 +144,10 @@ router.delete("/:id", (req: Request, res: Response) => {
             })
 
             res.status(200).send("Order deleted");
+        })
+        .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     } catch (error) {
         console.error(error);

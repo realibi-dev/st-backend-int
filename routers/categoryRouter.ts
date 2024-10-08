@@ -15,6 +15,10 @@ router.get("/", (req: Request, res: Response) => {
         })
         .then((data) => {
             res.status(200).send(data);
+        })
+        .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     } catch (error) {
         console.error(error);
@@ -34,6 +38,10 @@ router.get("/:id", (req: Request, res: Response) => {
         })
         .then((data) => {
             res.status(200).send(data);
+        })
+        .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     } catch (error) {
         console.error(error);
@@ -49,8 +57,11 @@ router.post("/", (req: Request, res: Response) => {
         })
         .then(() => {
             res.status(201).send("Category created");
+        })
+        .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
-
     } catch (error) {
         console.error(error);
         res.status(500).send("Server error. Please try later");
@@ -73,6 +84,10 @@ router.put("/:id", (req: Request, res: Response) => {
         })
         .then(() => {
             res.status(200).send("Category changed");
+        })
+        .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     } catch (error) {
         console.error(error);
@@ -94,6 +109,10 @@ router.delete("/:id", (req: Request, res: Response) => {
         })
         .then((data) => {
             res.status(200).send("Category deleted");
+        })
+        .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     } catch (error) {
         console.error(error);
