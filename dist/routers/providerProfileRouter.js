@@ -15,6 +15,10 @@ router.get("/", (req, res) => {
         })
             .then((data) => {
             res.status(200).send(data);
+        })
+            .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     }
     catch (error) {
@@ -33,6 +37,10 @@ router.get("/:id", (req, res) => {
         })
             .then((data) => {
             res.status(200).send(data);
+        })
+            .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     }
     catch (error) {
@@ -48,6 +56,10 @@ router.post("/", (req, res) => {
         })
             .then(() => {
             res.status(201).send("Provider profile created");
+        })
+            .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     }
     catch (error) {
@@ -67,6 +79,10 @@ router.put("/:id", (req, res) => {
         })
             .then(() => {
             res.status(200).send("Provider profile changed");
+        })
+            .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     }
     catch (error) {
@@ -87,6 +103,10 @@ router.delete("/:id", (req, res) => {
         })
             .then((data) => {
             res.status(200).send("Provider profile deleted");
+        })
+            .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     }
     catch (error) {

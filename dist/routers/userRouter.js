@@ -17,9 +17,54 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const db_1 = __importDefault(require("./../prisma/db"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const middlewares_1 = __importDefault(require("./../middlewares"));
+const helpers_1 = __importDefault(require("../helpers"));
 dotenv_1.default.config();
 const router = (0, express_1.Router)();
 const secretKey = process.env.SECRET_KEY || "";
+router.get("/getCart", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const currentUserId = helpers_1.default.getCurrentUserInfo(req).id;
+        const cart = yield db_1.default.cart.findFirst({
+            where: {
+                userId: currentUserId,
+                deletedAt: null
+            }
+        });
+        if (cart) {
+            const cartItems = yield db_1.default.cartItem.findMany({
+                where: {
+                    cartId: cart.id,
+                    deletedAt: null,
+                }
+            });
+            const products = yield db_1.default.product.findMany({
+                where: {
+                    id: {
+                        in: cartItems.map(item => item.productId),
+                    }
+                }
+            });
+            res.status(200).send({
+                success: true,
+                cartId: cart.id,
+                items: cartItems.map(item => {
+                    const product = products.find(p => p.id === item.productId);
+                    return Object.assign(Object.assign({}, product), { price: item.price || (product === null || product === void 0 ? void 0 : product.price), quantity: item.quantity });
+                })
+            });
+        }
+        else {
+            res.status(400).send({
+                success: false,
+                message: "User has no items in cart"
+            });
+        }
+    }
+    catch (error) {
+        console.log(error);
+        res.status(500).send({ success: false });
+    }
+}));
 router.get("/", middlewares_1.default.checkAdmin, (req, res) => {
     try {
         db_1.default.user.findMany({
@@ -29,6 +74,10 @@ router.get("/", middlewares_1.default.checkAdmin, (req, res) => {
         })
             .then((data) => {
             res.status(200).send(data);
+        })
+            .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     }
     catch (error) {
@@ -47,6 +96,10 @@ router.get("/:id", (req, res) => {
         })
             .then((data) => {
             res.status(200).send(data);
+        })
+            .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     }
     catch (error) {
@@ -76,7 +129,8 @@ router.post("/auth", (req, res) => __awaiter(void 0, void 0, void 0, function* (
         const token = jsonwebtoken_1.default.sign(payload, secretKey, options);
         res.send({
             user: Object.assign(Object.assign({}, user), { password: undefined }),
-            token: token
+            token: token,
+            success: true,
         });
     }
     catch (error) {
@@ -127,6 +181,10 @@ router.post("/register", (req, res) => __awaiter(void 0, void 0, void 0, functio
                 })
                     .then(() => {
                     console.log("Branch created for user " + userInfo.username);
+                })
+                    .catch((err) => {
+                    console.error(err);
+                    res.status(500).send("Server error. Please try later");
                 });
                 break;
             case 'provider':
@@ -138,12 +196,19 @@ router.post("/register", (req, res) => __awaiter(void 0, void 0, void 0, functio
                 })
                     .then(() => {
                     console.log("Provider profile created for user " + userInfo.username);
+                })
+                    .catch((err) => {
+                    console.error(err);
+                    res.status(500).send("Server error. Please try later");
                 });
                 break;
             case 'regularUser':
                 break;
         }
-        res.status(201).send("User created");
+        res.status(201).send({
+            status: 201,
+            message: "User created",
+        });
     }
     catch (error) {
         console.error(error);
@@ -163,6 +228,10 @@ router.delete("/:id", (req, res) => {
         })
             .then((data) => {
             res.status(200).send("User deleted");
+        })
+            .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     }
     catch (error) {

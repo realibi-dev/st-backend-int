@@ -14,6 +14,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const db_1 = __importDefault(require("../prisma/db"));
+const helpers_1 = __importDefault(require("../helpers"));
 const router = (0, express_1.Router)();
 router.get("/", (req, res) => {
     try {
@@ -24,6 +25,10 @@ router.get("/", (req, res) => {
         })
             .then((data) => {
             res.status(200).send(data);
+        })
+            .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     }
     catch (error) {
@@ -48,7 +53,11 @@ router.get("/:id", (req, res) => {
                 }
             });
             res.status(200).send(Object.assign(Object.assign({}, data), { items: cartItems }));
-        }));
+        }))
+            .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
+        });
     }
     catch (error) {
         console.error(error);
@@ -63,6 +72,10 @@ router.post("/", (req, res) => {
         })
             .then(() => {
             res.status(201).send("Cart created");
+        })
+            .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     }
     catch (error) {
@@ -70,4 +83,56 @@ router.post("/", (req, res) => {
         res.status(500).send("Server error. Please try later");
     }
 });
+router.post("/addItem", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    try {
+        const newCartItem = req.body;
+        console.log("newCartItem", newCartItem);
+        const currentUserId = (_a = helpers_1.default.getCurrentUserInfo(req)) === null || _a === void 0 ? void 0 : _a.id;
+        console.log("currentUserId", currentUserId);
+        if (currentUserId) {
+            let existingCart = yield db_1.default.cart.findFirst({
+                where: {
+                    deletedAt: null,
+                    userId: currentUserId,
+                }
+            });
+            if (!existingCart) {
+                existingCart = yield db_1.default.cart.create({
+                    data: {
+                        userId: currentUserId,
+                    }
+                });
+            }
+            const existingItemInCart = yield db_1.default.cartItem.findFirst({
+                where: {
+                    deletedAt: null,
+                    cartId: existingCart.id,
+                    productId: newCartItem.productId
+                }
+            });
+            if (!existingItemInCart) {
+                yield db_1.default.cartItem.create({
+                    data: {
+                        productId: newCartItem.productId,
+                        cartId: existingCart.id,
+                        price: newCartItem.price || 0,
+                        quantity: newCartItem.quantity,
+                    }
+                });
+            }
+            res.status(201).send({ success: true });
+        }
+        else {
+            res.status(401).send({
+                success: false,
+                message: "User not authorized",
+            });
+        }
+    }
+    catch (error) {
+        console.error(error);
+        res.status(500).send({ success: false });
+    }
+}));
 exports.default = router;

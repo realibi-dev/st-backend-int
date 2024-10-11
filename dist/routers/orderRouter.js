@@ -22,6 +22,10 @@ router.get("/", (req, res) => {
                 deletedAt: null,
             }
         })
+            .catch(err => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
+        })
             .then((data) => {
             res.status(200).send(data);
         });
@@ -32,8 +36,8 @@ router.get("/", (req, res) => {
     }
 });
 router.get("/:id", (req, res) => {
-    const id = +req.params.id;
     try {
+        const id = +req.params.id;
         db_1.default.order.findFirst({
             where: {
                 deletedAt: null,
@@ -42,6 +46,10 @@ router.get("/:id", (req, res) => {
         })
             .then((data) => {
             res.status(200).send(data);
+        })
+            .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     }
     catch (error) {
@@ -91,6 +99,10 @@ router.post("/", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 }
             });
             res.status(201).send("Order created");
+        })
+            .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     }
     catch (error) {
@@ -119,6 +131,10 @@ router.delete("/:id", (req, res) => {
                 }
             });
             res.status(200).send("Order deleted");
+        })
+            .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     }
     catch (error) {

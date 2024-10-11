@@ -31,11 +31,9 @@ router.get("/", (req: Request, res: Response) => {
             }
         })
         .then(async (data) => {
-            const currentUser = req.body?.userId || helpers.getCurrentUserInfo(req);
+            const currentUserId = req.body?.userId || helpers.getCurrentUserInfo(req)?.id;
             
-            if (currentUser) {
-                const currentUserId = currentUser.id;
-
+            if (currentUserId) {
                 const newPriceProducts = await prisma.productNewPrice.findMany({
                     where: {
                         deletedAt: null,

@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import prisma from "./../prisma/db";
 import dotenv from "dotenv";
 import middlewares from "./../middlewares";
+import helpers from "../helpers";
 
 dotenv.config();
 const router: Router = Router();
@@ -26,6 +27,57 @@ interface IUserAuth {
     username: string;
     password: string;
 }
+
+router.get("/getCart", async (req: Request, res: Response) => {
+    try {
+        const currentUserId = helpers.getCurrentUserInfo(req).id;
+    
+        const cart = await prisma.cart.findFirst({
+            where: {
+                userId: currentUserId,
+                deletedAt: null
+            }
+        });
+    
+        if (cart) {
+            const cartItems = await prisma.cartItem.findMany({
+                where: {
+                    cartId: cart.id,
+                    deletedAt: null,
+                }
+            });
+
+            const products = await prisma.product.findMany({
+                where: {
+                    id: {
+                        in: cartItems.map(item => item.productId),
+                    }
+                }
+            });
+    
+            res.status(200).send({
+                success: true,
+                cartId: cart.id,
+                items: cartItems.map(item => {
+                    const product = products.find(p => p.id === item.productId);
+                    return {
+                        ...product,
+                        price: item.price || product?.price,
+                        quantity: item.quantity,
+                    }
+                })
+            });
+        } else {
+            res.status(400).send({
+                success: false,
+                message: "User has no items in cart"
+            });
+        }
+    } catch(error) {
+        console.log(error);
+        res.status(500).send({ success: false });
+    }
+})
 
 router.get("/", middlewares.checkAdmin, (req: Request, res: Response) => {
     try {
@@ -100,7 +152,8 @@ router.post("/auth", async (req: Request, res: Response) => {
 
         res.send({
             user: { ...user, password: undefined },
-            token: token
+            token: token,
+            success: true,
         });
         
     } catch (error) {
@@ -183,7 +236,10 @@ router.post("/register", async (req: Request, res: Response) => {
         }
 
         
-        res.status(201).send("User created");
+        res.status(201).send({
+            status: 201,
+            message: "User created",
+        });
     } catch (error) {
         console.error(error);
         res.status(500).send("Server error. Please try later");

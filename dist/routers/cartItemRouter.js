@@ -24,6 +24,10 @@ router.get("/", (req, res) => {
         })
             .then((data) => {
             res.status(200).send(data);
+        })
+            .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     }
     catch (error) {
@@ -48,7 +52,11 @@ router.get("/:id", (req, res) => {
                 }
             });
             res.status(200).send(Object.assign(Object.assign({}, data), { items: cartItems }));
-        }));
+        }))
+            .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
+        });
     }
     catch (error) {
         console.error(error);
@@ -76,6 +84,10 @@ router.post("/", (req, res) => {
             else {
                 res.status(400).send("Product not found!");
             }
+        })
+            .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     }
     catch (err) {
@@ -95,6 +107,10 @@ router.put("/:id", (req, res) => {
         })
             .then(() => {
             res.status(200).send("Cart item changed");
+        })
+            .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     }
     catch (error) {
@@ -115,6 +131,10 @@ router.delete("/:id", (req, res) => {
         })
             .then((data) => {
             res.status(200).send("Cart item deleted");
+        })
+            .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
         });
     }
     catch (error) {
