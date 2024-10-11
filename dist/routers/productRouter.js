@@ -80,6 +80,7 @@ router.get("/:id", (req, res) => {
 router.post("/", (req, res) => {
     try {
         const productInfo = req.body;
+        console.log("Product info", productInfo);
         db_1.default.product.create({
             data: productInfo,
         })

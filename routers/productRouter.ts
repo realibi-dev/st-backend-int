@@ -92,6 +92,7 @@ router.get("/:id", (req: Request, res: Response) => {
 router.post("/", (req: Request, res: Response) => {
     try {
         const productInfo: IProduct = req.body;
+        console.log("Product info", productInfo);
         prisma.product.create({
             data: productInfo,
         })

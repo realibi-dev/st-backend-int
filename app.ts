@@ -7,6 +7,7 @@ import productRouter from "./routers/productRouter";
 import cartRouter from "./routers/cartRouter";
 import orderRouter from "./routers/orderRouter";
 import branchRouter from "./routers/branchRouter";
+import imageRouter from "./routers/imageRouter";
 import cors from "cors";
 
 dotenv.config();
@@ -16,11 +17,13 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: false}));
 app.use(cors());
 
+app.use("/file", express.static("./uploads"));
 app.use("/categories", categoryRouter);
 app.use("/users", userRouter);
 app.use("/products", productRouter);
 app.use("/carts", cartRouter);
 app.use("/orders", orderRouter);
 app.use("/branches", branchRouter);
+app.use("/image", imageRouter);
 
 app.listen(process.env.PORT);
