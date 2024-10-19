@@ -111,12 +111,28 @@ router.post("/addItem", (req, res) => __awaiter(void 0, void 0, void 0, function
                     productId: newCartItem.productId
                 }
             });
-            if (!existingItemInCart) {
+            if (existingItemInCart) {
+                yield db_1.default.cartItem.update({
+                    where: {
+                        id: existingItemInCart.id,
+                    },
+                    data: {
+                        quantity: existingItemInCart.quantity + newCartItem.quantity,
+                    }
+                });
+            }
+            else {
+                const product = yield db_1.default.product.findFirst({
+                    where: {
+                        deletedAt: null,
+                        id: newCartItem.productId,
+                    }
+                });
                 yield db_1.default.cartItem.create({
                     data: {
                         productId: newCartItem.productId,
                         cartId: existingCart.id,
-                        price: newCartItem.price || 0,
+                        price: newCartItem.price || (product === null || product === void 0 ? void 0 : product.price) || 0,
                         quantity: newCartItem.quantity,
                     }
                 });

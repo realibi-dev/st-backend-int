@@ -80,9 +80,7 @@ router.post("/", (req: Request, res: Response) => {
 router.post("/addItem", async (req: Request, res: Response) => {
     try {
         const newCartItem = req.body;
-        console.log("newCartItem", newCartItem);
         const currentUserId = helpers.getCurrentUserInfo(req)?.id;
-        console.log("currentUserId", currentUserId);
         if (currentUserId) {
             let existingCart = await prisma.cart.findFirst({
                 where: {
@@ -107,12 +105,28 @@ router.post("/addItem", async (req: Request, res: Response) => {
                 }
             });
 
-            if (!existingItemInCart) {
+            if (existingItemInCart) {
+               await prisma.cartItem.update({
+                where: {
+                    id: existingItemInCart.id,
+                },
+                data: {
+                    quantity: newCartItem.quantity,
+                }
+               });
+            } else {
+                const product = await prisma.product.findFirst({
+                    where: {
+                        deletedAt: null,
+                        id: newCartItem.productId,
+                    }
+                });
+
                 await prisma.cartItem.create({
                     data: {
                         productId: newCartItem.productId,
                         cartId: existingCart.id,
-                        price: newCartItem.price || 0,
+                        price: newCartItem.price || product?.price || 0,
                         quantity: newCartItem.quantity,
                     }
                 });
@@ -130,5 +144,30 @@ router.post("/addItem", async (req: Request, res: Response) => {
         res.status(500).send({ success: false });
     }
 });
+
+router.delete("/:id", (req: Request, res: Response) => {
+    const id = +req.params.id;
+
+    try {
+        prisma.cart.update({
+            where: {
+                id: id,
+            },
+            data: {
+                deletedAt: new Date()
+            }
+        })
+        .then((data) => {
+            res.status(200).send("Cart deleted");
+        })
+        .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send("Server error. Please try later");
+    }
+})
 
 export default router;

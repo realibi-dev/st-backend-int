@@ -100,4 +100,45 @@ router.post("/uploadUserImage", upload.single("image"), (req: Request, res: Resp
     }
 });
 
+router.post("/uploadSubCategoryImage", upload.single("image"), (req: Request, res: Response) => {
+  const tempPath = req.file?.path;
+  const random = Math.round(Math.random() * 1000000000).toString();
+  const targetPath = path.join(`./uploads/subcategories_images/${random}.png`);
+
+  const subCategoryId = req.body.subCategoryId;
+
+  if (path.extname(req.file?.originalname || "file.png").toLowerCase() === ".png") {
+    fs.rename(tempPath || "", targetPath, async err => {
+      if (err) return handleError(err, res);
+
+      await prisma.subCategory.update({
+          where: {
+              id: +subCategoryId
+          },
+          data: {
+              image: `http://localhost:8080/file/subcategories_images/${random}.png`,
+          }
+      })
+      .then(() => {
+          res
+          .status(200)
+          .contentType("text/plain")
+          .end("File uploaded!");
+      })
+      .catch(err => {
+          handleError(err, res);
+      })
+    });
+  } else {
+    fs.unlink(tempPath || "", err => {
+      if (err) return handleError(err, res);
+
+      res
+        .status(403)
+        .contentType("text/plain")
+        .end("Only .png files are allowed!");
+    });
+  }
+});
+
 export default router;

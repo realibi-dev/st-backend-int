@@ -1,5 +1,7 @@
 import { Router, Request, Response } from "express";
 import prisma from "./../prisma/db";
+import helpers from "../helpers";
+import middlewares from "../middlewares";
 const router: Router = Router();
 
 interface IOrder {
@@ -7,11 +9,11 @@ interface IOrder {
     totalPrice: number;
     deliveryPrice: number|undefined;
     isCompleted: boolean|undefined;
-    userId: number;
+    userId: number; // не указываем
     branchId: number;
     isPaid: boolean|undefined;
     status: string|undefined;
-    cartId: number;
+    cartId: number; // не указываем
 }
 
 interface IStatisticsSettings {
@@ -62,14 +64,17 @@ router.get("/:id", (req: Request, res: Response) => {
     }
 })
 
-router.post("/", async (req: Request, res: Response) => {
+router.post("/", middlewares.checkAuthorization, async (req: Request, res: Response) => {
     try {
+        const currentUser = helpers.getCurrentUserInfo(req);
+
         const orderInfo: IOrder = req.body;
         orderInfo.orderNumber = String(Math.round(Math.random() * 100000000));
         
         const cart = await prisma.cart.findFirst({
             where: {
-                id: orderInfo.cartId,
+                userId: currentUser.id,
+                deletedAt: null,
             }
         });
 
@@ -83,12 +88,14 @@ router.post("/", async (req: Request, res: Response) => {
             return currentSum + (item.price || 0) * item.quantity;
         }, 0);
 
-        const orderPayload = { ...orderInfo, cartId: undefined }
+        orderInfo.userId = currentUser.id;
+
+        const orderPayload = { ...orderInfo }
 
         prisma.order.create({
             data: orderPayload,
         })
-        .then((order) => {
+        .then(async (order) => {
             cartItems.map(async (item) => {
                 await prisma.orderItem.create({
                     data: {
@@ -101,14 +108,24 @@ router.post("/", async (req: Request, res: Response) => {
                 });
             });
 
-            prisma.cart.update({
+            await prisma.cart.update({
                 where: {
-                    id: orderInfo.cartId,
+                    id: cart?.id,
                 },
                 data: {
                     deletedAt: new Date()
                 }
-            });
+            })
+
+            await prisma.cartItem.updateMany({
+                where: {
+                    cartId: cart?.id
+                },
+                data: {
+                    deletedAt: new Date()
+                }
+            })
+
             res.status(201).send("Order created");
         })
         .catch((err) => {

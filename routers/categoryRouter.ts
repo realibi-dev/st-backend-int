@@ -6,6 +6,12 @@ interface ICategory {
     name: string;
 }
 
+interface ISubCategory {
+    name: string;
+    image: string|undefined;
+    categoryId: number|undefined;
+}
+
 router.get("/", (req: Request, res: Response) => {
     try {
         prisma.category.findMany({
@@ -13,8 +19,21 @@ router.get("/", (req: Request, res: Response) => {
                 deletedAt: null,
             }
         })
-        .then((data) => {
-            res.status(200).send(data);
+        .then(async (categories) => {
+            const subCategories = await prisma.subCategory.findMany({
+                where: {
+                    deletedAt: null,
+                }
+            });
+
+            categories = categories.map(item => {
+                return {
+                    ...item,
+                    subCategories: subCategories.filter(subCategory => subCategory.categoryId === item.id),
+                }
+            })
+
+            res.status(200).send(categories);
         })
         .catch((err) => {
             console.error(err);
@@ -57,6 +76,25 @@ router.post("/", (req: Request, res: Response) => {
         })
         .then(() => {
             res.status(201).send("Category created");
+        })
+        .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send("Server error. Please try later");
+    }
+})
+
+router.post("/subCategories", (req: Request, res: Response) => {
+    try {
+        const subCategoryInfo: ISubCategory = req.body;
+        prisma.subCategory.create({
+            data: subCategoryInfo,
+        })
+        .then(() => {
+            res.status(201).send("Subcategory created");
         })
         .catch((err) => {
             console.error(err);

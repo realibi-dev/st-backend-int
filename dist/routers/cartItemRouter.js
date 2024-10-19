@@ -14,6 +14,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const db_1 = __importDefault(require("../prisma/db"));
+const helpers_1 = __importDefault(require("../helpers"));
 const router = (0, express_1.Router)();
 router.get("/", (req, res) => {
     try {
@@ -63,38 +64,54 @@ router.get("/:id", (req, res) => {
         res.status(500).send("Server error. Please try later");
     }
 });
-router.post("/", (req, res) => {
+router.post("/", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
+        const currentUser = helpers_1.default.getCurrentUserInfo(req);
         const cartItemInfo = req.body;
-        db_1.default.product.findFirst({
-            where: {
-                deletedAt: null,
-                id: cartItemInfo.productId,
-            }
-        })
-            .then((product) => {
-            if (product) {
-                db_1.default.cartItem.create({
-                    data: Object.assign(Object.assign({}, cartItemInfo), { price: cartItemInfo.price || (product === null || product === void 0 ? void 0 : product.price) }),
-                })
-                    .then(() => {
-                    res.status(201).send("Cart item created");
+        if (currentUser) {
+            let cart = yield db_1.default.cart.findFirst({
+                where: {
+                    userId: currentUser.id,
+                    deletedAt: null,
+                }
+            });
+            if (!cart) {
+                cart = yield db_1.default.cart.create({
+                    data: {
+                        userId: currentUser.id,
+                    }
                 });
             }
-            else {
-                res.status(400).send("Product not found!");
-            }
-        })
-            .catch((err) => {
-            console.error(err);
-            res.status(500).send("Server error. Please try later");
-        });
+            db_1.default.product.findFirst({
+                where: {
+                    deletedAt: null,
+                    id: cartItemInfo.productId,
+                }
+            })
+                .then((product) => {
+                if (product) {
+                    db_1.default.cartItem.create({
+                        data: Object.assign(Object.assign({}, cartItemInfo), { cartId: cart.id, price: cartItemInfo.price || (product === null || product === void 0 ? void 0 : product.price) }),
+                    })
+                        .then(() => {
+                        res.status(201).send("Cart item created");
+                    });
+                }
+                else {
+                    res.status(400).send("Product not found!");
+                }
+            })
+                .catch((err) => {
+                console.error(err);
+                res.status(500).send("Server error. Please try later");
+            });
+        }
     }
     catch (err) {
         console.error(err);
         res.status(500).send("Server error. Please try later");
     }
-});
+}));
 router.put("/:id", (req, res) => {
     try {
         const id = +req.params.id;

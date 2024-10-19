@@ -41,6 +41,16 @@ model Category {
   deletedAt DateTime?
 }
 
+model SubCategory {
+  id          Int       @id @default(autoincrement())
+  name        String
+  image       String?
+  categoryId  Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now())
+  deletedAt   DateTime?
+}
+
 model Product {
   id             Int       @id @default(autoincrement())
   name           String
@@ -52,7 +62,7 @@ model Product {
   image          String?
   isNew          Boolean   @default(true)
   expirationDate String
-  categoryId     Int
+  subCategoryId  Int?
   providerId     Int
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @default(now())

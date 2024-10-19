@@ -14,6 +14,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const db_1 = __importDefault(require("./../prisma/db"));
+const helpers_1 = __importDefault(require("../helpers"));
+const middlewares_1 = __importDefault(require("../middlewares"));
 const router = (0, express_1.Router)();
 router.get("/", (req, res) => {
     try {
@@ -57,13 +59,15 @@ router.get("/:id", (req, res) => {
         res.status(500).send("Server error. Please try later");
     }
 });
-router.post("/", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+router.post("/", middlewares_1.default.checkAuthorization, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
+        const currentUser = helpers_1.default.getCurrentUserInfo(req);
         const orderInfo = req.body;
         orderInfo.orderNumber = String(Math.round(Math.random() * 100000000));
         const cart = yield db_1.default.cart.findFirst({
             where: {
-                id: orderInfo.cartId,
+                userId: currentUser.id,
+                deletedAt: null,
             }
         });
         const cartItems = yield db_1.default.cartItem.findMany({
@@ -74,11 +78,12 @@ router.post("/", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
         orderInfo.totalPrice = cartItems.reduce((currentSum, item) => {
             return currentSum + (item.price || 0) * item.quantity;
         }, 0);
-        const orderPayload = Object.assign(Object.assign({}, orderInfo), { cartId: undefined });
+        orderInfo.userId = currentUser.id;
+        const orderPayload = Object.assign({}, orderInfo);
         db_1.default.order.create({
             data: orderPayload,
         })
-            .then((order) => {
+            .then((order) => __awaiter(void 0, void 0, void 0, function* () {
             cartItems.map((item) => __awaiter(void 0, void 0, void 0, function* () {
                 yield db_1.default.orderItem.create({
                     data: {
@@ -90,16 +95,24 @@ router.post("/", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                     }
                 });
             }));
-            db_1.default.cart.update({
+            yield db_1.default.cart.update({
                 where: {
-                    id: orderInfo.cartId,
+                    id: cart === null || cart === void 0 ? void 0 : cart.id,
+                },
+                data: {
+                    deletedAt: new Date()
+                }
+            });
+            yield db_1.default.cartItem.updateMany({
+                where: {
+                    cartId: cart === null || cart === void 0 ? void 0 : cart.id
                 },
                 data: {
                     deletedAt: new Date()
                 }
             });
             res.status(201).send("Order created");
-        })
+        }))
             .catch((err) => {
             console.error(err);
             res.status(500).send("Server error. Please try later");

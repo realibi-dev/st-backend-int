@@ -11,7 +11,7 @@ interface IProduct {
     oldPrice: number|undefined;
     image: string|undefined;
     expirationDate: string;
-    categoryId: number;
+    subCategoryId: number;
     providerId: number;
 }
 
@@ -22,12 +22,58 @@ interface IChangePrice {
 }
 
 router.get("/", (req: Request, res: Response) => {
-    // TODO: test this endpoint with userId in req body
-
     try {
         prisma.product.findMany({
             where: {
                 deletedAt: null,
+            }
+        })
+        .then(async (data) => {
+            const currentUserId = req.body?.userId || helpers.getCurrentUserInfo(req)?.id;
+            
+            if (currentUserId) {
+                const newPriceProducts = await prisma.productNewPrice.findMany({
+                    where: {
+                        deletedAt: null,
+                        userId: currentUserId
+                    }
+                });
+
+                if (newPriceProducts.length) {
+                    const productsWithUpdatedPrices = data.map(product => {
+                        return {
+                            ...product,
+                            price: newPriceProducts.find(item => item.productId === product.id)?.price || product.price,
+                        }
+                    });
+
+                    res.status(200).send(productsWithUpdatedPrices);
+                    return;
+                }
+            }
+
+            res.status(200).send(data);
+        })
+        .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send("Server error. Please try later");
+    }
+})
+
+router.get("/subCategory/:subCategoryId", (req: Request, res: Response) => {
+    // TODO: test this endpoint with userId in req body
+
+    try {
+        const subCategoryId = +req.params.subCategoryId;
+
+        prisma.product.findMany({
+            where: {
+                deletedAt: null,
+                subCategoryId,
             }
         })
         .then(async (data) => {
@@ -76,7 +122,27 @@ router.get("/:id", (req: Request, res: Response) => {
                 id: id,
             }
         })
-        .then((data) => {
+        .then(async (data) => {
+            const currentUserId = req.body?.userId || helpers.getCurrentUserInfo(req)?.id;
+            
+            if (currentUserId) {
+                const newPriceProduct = await prisma.productNewPrice.findFirst({
+                    where: {
+                        deletedAt: null,
+                        userId: currentUserId,
+                        productId: id,
+                    }
+                });
+
+                if (newPriceProduct) {
+                    res.status(200).send({
+                        ...data,
+                        price: newPriceProduct.price || data?.price,
+                    })
+                    return;
+                }
+            }
+
             res.status(200).send(data);
         })
         .catch((err) => {
