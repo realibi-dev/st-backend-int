@@ -21,6 +21,42 @@ interface IStatisticsSettings {
     endDate: string;
 }
 
+router.get("/userOrderHistory", middlewares.checkAuthorization, async (req: Request, res: Response) => {
+    try {
+        const currentUser = helpers.getCurrentUserInfo(req);
+
+        const userOrders = await prisma.order.findMany({
+            where: {
+                userId: currentUser.id,
+                deletedAt: null,
+            }
+        });
+
+        const orderItems = await prisma.orderItem.findMany({
+            where: {
+                orderId: {
+                    in: userOrders.map(order => order.id),
+                },
+                deletedAt: null,
+            }
+        });
+
+        const userOrdersResult = userOrders.map(order => {
+            const currentOrderProducts = orderItems.filter(orderItem => orderItem.orderId === order.id);
+
+            return {
+                ...order,
+                products: currentOrderProducts,
+            };
+        });
+
+        res.status(200).send(userOrdersResult);
+    } catch(error) {
+        console.log(error);
+        res.status(500).send(error);
+    }
+});
+
 router.get("/", (req: Request, res: Response) => {
     try {
         prisma.order.findMany({
@@ -173,66 +209,71 @@ router.delete("/:id", (req: Request, res: Response) => {
 })
 
 router.post("/statistics", async (req: Request, res: Response) => {
-    const statisticsSettings: IStatisticsSettings = req.body;
+    try {
+        const statisticsSettings: IStatisticsSettings = req.body;
 
-    let orderItems: any = await prisma.orderItem.findMany({
-        where: {
-            AND: [
-                {
-                    deletedAt: null,
-                },
-                {
-                    createdAt: {
-                        gt: new Date(statisticsSettings.startDate),
+        let orderItems: any = await prisma.orderItem.findMany({
+            where: {
+                AND: [
+                    {
+                        deletedAt: null,
                     },
-                },
-                {
-                    createdAt: {
-                        lt: new Date(statisticsSettings.endDate),
+                    {
+                        createdAt: {
+                            gt: new Date(statisticsSettings.startDate),
+                        },
                     },
-                }
-            ],
-        }
-    });
-
-    const products = await prisma.product.findMany({
-        where: {
-            id: {
-                in: orderItems.map((item: any) => item.productId), // [3, 2, 1]
+                    {
+                        createdAt: {
+                            lt: new Date(statisticsSettings.endDate),
+                        },
+                    }
+                ],
             }
-        }
-    });
-
-    orderItems = orderItems.map((item: any) => {
-        return {
-            ...item,
-            productName: products.find(product => product.id === item.productId)?.name,
-        }
-    })
-
-    const uniqueProductIds = [...new Set(orderItems.map((item: any) => item.productId))];
-    const uniqueProducts = uniqueProductIds.map(productId => {
-        const totalQuantity = orderItems.filter((orderItem: any) => orderItem.productId === productId).reduce((acc: any, item: any) => {
-            return acc + item.quantity;
-        }, 0);
-
-        const totalPriceSum = orderItems.filter((orderItem: any) => orderItem.productId === productId).reduce((acc: any, item: any) => {
-            return acc + (item.price * item.quantity);
-        }, 0);
-        
-        return {
-            ...orderItems.find((orderItem: any) => orderItem.productId === productId),
-            quantity: totalQuantity,
-            priceSum: totalPriceSum,
-        }
-    })
-
-    res.status(200).send({
-        products: uniqueProducts,
-        totalSum: uniqueProducts.reduce((acc: any, item: any) => {
-            return acc + item.priceSum
-        }, 0),
-    });
+        });
+    
+        const products = await prisma.product.findMany({
+            where: {
+                id: {
+                    in: orderItems.map((item: any) => item.productId), // [3, 2, 1]
+                }
+            }
+        });
+    
+        orderItems = orderItems.map((item: any) => {
+            return {
+                ...item,
+                productName: products.find(product => product.id === item.productId)?.name,
+            }
+        })
+    
+        const uniqueProductIds = [...new Set(orderItems.map((item: any) => item.productId))];
+        const uniqueProducts = uniqueProductIds.map(productId => {
+            const totalQuantity = orderItems.filter((orderItem: any) => orderItem.productId === productId).reduce((acc: any, item: any) => {
+                return acc + item.quantity;
+            }, 0);
+    
+            const totalPriceSum = orderItems.filter((orderItem: any) => orderItem.productId === productId).reduce((acc: any, item: any) => {
+                return acc + (item.price * item.quantity);
+            }, 0);
+            
+            return {
+                ...orderItems.find((orderItem: any) => orderItem.productId === productId),
+                quantity: totalQuantity,
+                priceSum: totalPriceSum,
+            }
+        })
+    
+        res.status(200).send({
+            products: uniqueProducts,
+            totalSum: uniqueProducts.reduce((acc: any, item: any) => {
+                return acc + item.priceSum
+            }, 0),
+        });
+    } catch(error) {
+        console.log(error);
+        res.status(500).send(error);
+    }
 })
 
 export default router;
