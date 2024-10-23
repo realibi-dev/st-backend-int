@@ -21,6 +21,15 @@ interface IChangePrice {
     userId: number;
 }
 
+interface IFilter {
+    name: string|undefined;
+    minPrice: number|undefined;
+    maxPrice: number|undefined;
+    providerIds: Array<number>|undefined;
+    subCategoryIds: Array<number>|undefined;
+    sortingMethod: string|undefined; // Сортировка по цене: asc, desc
+}
+
 router.get("/", (req: Request, res: Response) => {
     try {
         prisma.product.findMany({
@@ -61,6 +70,109 @@ router.get("/", (req: Request, res: Response) => {
     } catch (error) {
         console.error(error);
         res.status(500).send("Server error. Please try later");
+    }
+})
+
+interface ISearchConditions {
+    [key: string]: any;
+}
+
+router.post("/filter", async (req: Request, res: Response) => {
+    try {
+        const filters: IFilter = req.body;
+
+        const searchConditions: ISearchConditions = {
+            deletedAt: null,
+        };
+
+        if ("name" in filters) {
+            searchConditions.name = {
+                contains: filters.name?.toLowerCase(),
+                mode: 'insensitive',
+            }
+        }
+
+        if ("minPrice" in filters) {
+            searchConditions.price = {
+                gte: filters.minPrice,
+            };
+        }
+
+        if ("maxPrice" in filters) {
+            if ("minPrice" in filters) {
+                delete searchConditions.price;
+
+                searchConditions.AND = [
+                    {
+                        price: {
+                            gte: filters.minPrice,
+                        }
+                    },
+                    {
+                        price: {
+                            lte: filters.maxPrice,
+                        }
+                    }
+                ]
+            } else {
+                searchConditions.price = {
+                    lte: filters['maxPrice'],
+                };
+            }
+        }
+
+        if ("providerIds" in filters) {
+            searchConditions.providerId = {
+                in: filters.providerIds,
+            };
+        }
+
+        if ("subCategoryIds" in filters) {
+            searchConditions.subCategoryId = {
+                in: filters.subCategoryIds,
+            };
+        }
+
+        let sortingMethod = {};
+
+        if ("sortingMethod" in filters) {
+            sortingMethod = {
+                price: filters.sortingMethod,
+            }
+        }
+
+        const products = await prisma.product.findMany({
+            orderBy: sortingMethod,
+            where: searchConditions,
+        });
+
+        const currentUserId = req.body?.userId || helpers.getCurrentUserInfo(req)?.id;
+
+        if (currentUserId) {
+            const newPriceProducts = await prisma.productNewPrice.findMany({
+                where: {
+                    deletedAt: null,
+                    userId: currentUserId
+                }
+            });
+
+            if (newPriceProducts.length) {
+                const productsWithUpdatedPrices = products.map(product => {
+                    return {
+                        ...product,
+                        price: newPriceProducts.find(item => item.productId === product.id)?.price || product.price,
+                    }
+                });
+
+                res.status(200).send(productsWithUpdatedPrices);
+                return;
+            }
+        }
+
+        res.status(200).send(products);
+    } catch(error) {
+        console.error(error);
+        res.status(500).send(error);
     }
 })
 
