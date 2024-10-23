@@ -41,7 +41,7 @@ router.get("/userOrderHistory", middlewares.checkAuthorization, async (req: Requ
             }
         });
 
-        const userOrdersResult = userOrders.map(order => {
+        let userOrdersResult = userOrders.map(order => {
             const currentOrderProducts = orderItems.filter(orderItem => orderItem.orderId === order.id);
 
             return {
@@ -49,6 +49,36 @@ router.get("/userOrderHistory", middlewares.checkAuthorization, async (req: Requ
                 products: currentOrderProducts,
             };
         });
+
+        const branches = await prisma.branch.findMany({
+            where: {
+                deletedAt: null,
+                id: {
+                    in: userOrders.map(order => order.branchId),
+                }
+            }
+        });
+
+        const products = await prisma.product.findMany({
+            where: {
+                id: {
+                    in: orderItems.map(item => item.productId),
+                }
+            }
+        });
+
+        userOrdersResult = userOrdersResult.map(item => {
+            return {
+                ...item,
+                branchName: branches.find(branch => branch.id === item.branchId)?.name,
+                products: item.products.map(product => {
+                    return {
+                        ...product,
+                        productName: products.find(pr => pr.id === product.productId)?.name
+                    }
+                })
+            }
+        })
 
         res.status(200).send(userOrdersResult);
     } catch(error) {
