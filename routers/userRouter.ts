@@ -62,6 +62,7 @@ router.get("/getCart", async (req: Request, res: Response) => {
                     const product = products.find(p => p.id === item.productId);
                     return {
                         ...product,
+                        cartItemId: item.id,
                         price: item.price || product?.price,
                         quantity: item.quantity,
                     }

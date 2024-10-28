@@ -5,10 +5,10 @@ dotenv.config();
 
 const getCurrentUserInfo = (req: Request): any => {
     const bearerToken = req.headers.authorization;
-    console.log("bearer token", bearerToken);
+    // console.log("bearer token", bearerToken);
     if (bearerToken) {
         const token: string = bearerToken.split(" ")[1];
-        console.log("token", token);
+        // console.log("token", token);
 
         let userInfo;
 
@@ -17,7 +17,7 @@ const getCurrentUserInfo = (req: Request): any => {
                 console.log("err", err);
                 return;
             }
-            console.log("decoded", decoded);
+            // console.log("decoded", decoded);
             userInfo = decoded;
         });
 

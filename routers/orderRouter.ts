@@ -71,9 +71,11 @@ router.get("/userOrderHistory", middlewares.checkAuthorization, async (req: Requ
             return {
                 ...item,
                 branchName: branches.find(branch => branch.id === item.branchId)?.name,
+                branchAddress: branches.find(branch => branch.id === item.branchId)?.address,
                 products: item.products.map(product => {
                     return {
                         ...product,
+                        cartItemId: product.id,
                         productName: products.find(pr => pr.id === product.productId)?.name
                     }
                 })
