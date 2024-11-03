@@ -21,6 +21,62 @@ interface IStatisticsSettings {
     endDate: string;
 }
 
+interface IFinancialReportSettings {
+    startDate: string;
+    endDate: string;
+    branchId: number;
+}
+
+router.post("/financial-report", middlewares.checkAuthorization, async (req: Request, res: Response) => {
+    try {
+        const currentUser = helpers.getCurrentUserInfo(req);
+        const financialReportSettings: IFinancialReportSettings = req.body;
+
+        const orders = await prisma.order.findMany({
+            where: {
+                deletedAt: null,
+                branchId: financialReportSettings.branchId,
+            }
+        });
+
+        let orderItems = await prisma.orderItem.findMany({
+            where: {
+                orderId: {
+                    in: orders.map(order => order.id),
+                },
+                deletedAt: null,
+            }
+        });
+
+        const products = await prisma.product.findMany({
+            where: {
+                id: {
+                    in: orderItems.map(item => item.productId),
+                }
+            }
+        });
+
+        orderItems = orderItems.map(item => {
+            return {
+                ...item,
+                productName: products.find(product => product.id === item.productId)?.name,
+            }
+        })
+
+        const result = orders.map(order => {
+            return {
+                ...order,
+                items: orderItems.filter(item => item.orderId === order.id),
+            }
+        })
+
+        res.status(200).send(result);
+    } catch(error) {
+        console.log(error);
+        res.status(500).send(error);
+    }
+})
+
 router.get("/userOrderHistory", middlewares.checkAuthorization, async (req: Request, res: Response) => {
     try {
         const currentUser = helpers.getCurrentUserInfo(req);

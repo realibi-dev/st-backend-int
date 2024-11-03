@@ -9,6 +9,7 @@ import orderRouter from "./routers/orderRouter";
 import branchRouter from "./routers/branchRouter";
 import imageRouter from "./routers/imageRouter";
 import cartItemsRouter from "./routers/cartItemRouter";
+import providersRouter from "./routers/providerProfileRouter";
 import cors from "cors";
 
 dotenv.config();
@@ -27,5 +28,6 @@ app.use("/orders", orderRouter);
 app.use("/branches", branchRouter);
 app.use("/image", imageRouter);
 app.use("/cartItems", cartItemsRouter);
+app.use("/providers", providersRouter);
 
 app.listen(process.env.PORT);

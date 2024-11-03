@@ -47,4 +47,27 @@ function checkAdmin(req: Request, res: Response, next: NextFunction) {
     }
 }
 
-export default { checkAuthorization, checkAdmin }
+function checkProvider(req: Request, res: Response, next: NextFunction) {
+    const bearerToken = req.headers.authorization;
+
+    if (bearerToken) {
+        const token: string = bearerToken.split(" ")[1];
+
+        jwt.verify(token, secretKey, function(err, decoded: any) {
+            if (err) {
+                res.status(400).send(err);
+                return;
+            }
+
+            if (decoded.accountType === "provider") {
+                next();
+            } else {
+                res.status(400).send("This endpoint needs provider authorization!");
+            }
+        });
+    } else {
+        res.status(401).send("User is not authorized!");
+    }
+}
+
+export default { checkAuthorization, checkAdmin, checkProvider }
