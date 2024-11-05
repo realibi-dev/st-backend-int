@@ -62,7 +62,10 @@ router.post("/", (req: Request, res: Response) => {
     try {
         const branchInfo: IBranch = req.body;
         prisma.branch.create({
-            data: branchInfo,
+            data: {
+                ...branchInfo,
+                id: Math.floor(Math.random() * 1000000000),
+            },
         })
         .then(() => {
             res.status(201).send("Branch created");

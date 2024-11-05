@@ -30,12 +30,36 @@ interface IFilter {
     sortingMethod: string|undefined; // Сортировка по цене: asc, desc
 }
 
+router.get('/filterData', async (req: Request, res: Response) => {
+    try {
+        const providers = await prisma.providerProfile.findMany({ where: { deletedAt: null } });
+        const subCategories = await prisma.subCategory.findMany({ where: { deletedAt: null } });
+        const maxPrice = await prisma.product.findFirst({ where: { deletedAt: null }, orderBy: { price: 'desc' } });
+        const minPrice = await prisma.product.findFirst({ where: { deletedAt: null }, orderBy: { price: 'asc' } });
+
+        res.status(200).send({
+            providers,
+            subCategories,
+            maxPrice: maxPrice?.price,
+            minPrice: minPrice?.price,
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send("Server error. Please try later");
+    }
+})
+
 router.get("/", (req: Request, res: Response) => {
     try {
         prisma.product.findMany({
             where: {
                 deletedAt: null,
-            }
+            },
+            orderBy: [
+                { orderCoefficient: 'desc' },
+                { rating: 'desc' },
+                { reviewsCount: 'desc' },
+            ]
         })
         .then(async (data) => {
             const currentUserId = req.body?.userId || helpers.getCurrentUserInfo(req)?.id;
@@ -45,11 +69,11 @@ router.get("/", (req: Request, res: Response) => {
                     where: {
                         deletedAt: null,
                         userId: currentUserId
-                    }
+                    },
                 });
 
                 if (newPriceProducts.length) {
-                    const productsWithUpdatedPrices = data.map(product => {
+                    let productsWithUpdatedPrices = data.map(product => {
                         return {
                             ...product,
                             price: newPriceProducts.find(item => item.productId === product.id)?.price || product.price,
@@ -142,7 +166,12 @@ router.post("/filter", async (req: Request, res: Response) => {
         }
 
         const products = await prisma.product.findMany({
-            orderBy: sortingMethod,
+            orderBy: [
+                { orderCoefficient: 'desc' },
+                { rating: 'desc' },
+                { reviewsCount: 'desc' },
+                sortingMethod,
+            ],
             where: searchConditions,
         });
 

@@ -52,21 +52,24 @@ model SubCategory {
 }
 
 model Product {
-  id             Int       @id @default(autoincrement())
-  name           String
-  compound       String
-  temperature    String
-  isActive       Boolean   @default(true)
-  price          Float
-  oldPrice       Float?
-  image          String?
-  isNew          Boolean   @default(true)
-  expirationDate String
-  subCategoryId  Int?
-  providerId     Int
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @default(now())
-  deletedAt      DateTime?
+  id                Int       @id @default(autoincrement())
+  name              String
+  compound          String
+  temperature       String
+  isActive          Boolean   @default(true)
+  price             Float
+  oldPrice          Float?
+  image             String?
+  isNew             Boolean   @default(true)
+  expirationDate    String
+  rating            Float     @default(5)
+  reviewsCount      Int       @default(0)
+  orderCoefficient  Float     @default(0)
+  subCategoryId     Int?
+  providerId        Int
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now())
+  deletedAt         DateTime?
 }
 
 model Branch {
@@ -145,6 +148,18 @@ model ProductNewPrice {
   userId        Int
   productId     Int
   price         Float
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now())
+  deletedAt     DateTime?
+}
+
+model ProductReview {
+  id            Int       @id @default(autoincrement())
+  userId        Int
+  orderId       Int
+  productId     Int
+  rating        Int
+  comment       String    @default("")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @default(now())
   deletedAt     DateTime?

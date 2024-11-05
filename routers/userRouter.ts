@@ -146,7 +146,7 @@ router.post("/auth", async (req: Request, res: Response) => {
         }
         
         const options = {
-            expiresIn: '2h'
+            expiresIn: 60*60*24*30*12*2
         }
 
         const token = jwt.sign(payload, secretKey, options);
@@ -197,8 +197,9 @@ router.post("/register", async (req: Request, res: Response) => {
 
         switch (userInfo.accountType) {
             case 'cafeOwner':
-                prisma.branch.create({
+                await prisma.branch.create({
                     data: {
+                        id: Math.floor(Math.random() * 1000000000),
                         name: userInfo.cafeName || '',
                         address: userInfo.cafeAddress || '',
                         contactPerson: userInfo.fullname,
@@ -207,14 +208,8 @@ router.post("/register", async (req: Request, res: Response) => {
                         closeTime: userInfo.closeTime || '',
                         userId: user.id,
                     }
-                })
-                .then(() => {
-                    console.log("Branch created for user " + userInfo.username);
-                })
-                .catch((err) => {
-                    console.error(err);
-                    res.status(500).send("Server error. Please try later");
                 });
+                console.log("Branch created for user " + userInfo.username);
             break;
             case 'provider':
                 prisma.providerProfile.create({
