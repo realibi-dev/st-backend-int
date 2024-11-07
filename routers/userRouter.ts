@@ -8,7 +8,10 @@ import helpers from "../helpers";
 dotenv.config();
 const router: Router = Router();
 
-const secretKey = process.env.SECRET_KEY || "";
+const secretKey = process.env.SECRET_KEY;
+if (!secretKey) {
+    throw new Error('SECRET_KEY not found in environment variables');
+}
 
 interface IUser {
     username: string;
@@ -143,13 +146,15 @@ router.post("/auth", async (req: Request, res: Response) => {
         // creating token
         const payload = {
             ...user,
+            iat: Date.now(),
         }
         
         const options = {
-            expiresIn: 60*60*24*30*12*2
+            expiresIn: '2y',
         }
 
         const token = jwt.sign(payload, secretKey, options);
+        console.log("new token", token);
 
         res.send({
             user: { ...user, password: undefined },

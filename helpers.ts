@@ -5,10 +5,8 @@ dotenv.config();
 
 const getCurrentUserInfo = (req: Request): any => {
     const bearerToken = req.headers.authorization;
-    // console.log("bearer token", bearerToken);
     if (bearerToken) {
         const token: string = bearerToken.split(" ")[1];
-        // console.log("token", token);
 
         let userInfo;
 

@@ -43,8 +43,8 @@ router.post("/", middlewares.checkAuthorization, async (req: Request, res: Respo
         const userId: number = helpers.getCurrentUserInfo(req).id;
         const { productId, rating, comment, orderId } = req.body;
 
-        const productReview: IProductReview = await prisma.productReview.create({ data: { userId, productId, rating, comment, orderId } });
         const { rating: updatedRating, count: updatedCount } = await getUpdatedRatingAndCount(productId, rating);
+        const productReview: IProductReview = await prisma.productReview.create({ data: { userId, productId, rating, comment, orderId } });
         await prisma.product.update({ where: { id: productId }, data: { rating: updatedRating, reviewsCount: updatedCount } });
         res.json(productReview);
     } catch (error) {
