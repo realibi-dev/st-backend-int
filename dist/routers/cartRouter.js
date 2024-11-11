@@ -87,9 +87,7 @@ router.post("/addItem", (req, res) => __awaiter(void 0, void 0, void 0, function
     var _a;
     try {
         const newCartItem = req.body;
-        console.log("newCartItem", newCartItem);
         const currentUserId = (_a = helpers_1.default.getCurrentUserInfo(req)) === null || _a === void 0 ? void 0 : _a.id;
-        console.log("currentUserId", currentUserId);
         if (currentUserId) {
             let existingCart = yield db_1.default.cart.findFirst({
                 where: {
@@ -111,13 +109,14 @@ router.post("/addItem", (req, res) => __awaiter(void 0, void 0, void 0, function
                     productId: newCartItem.productId
                 }
             });
+            let cartItemId = existingItemInCart === null || existingItemInCart === void 0 ? void 0 : existingItemInCart.id;
             if (existingItemInCart) {
                 yield db_1.default.cartItem.update({
                     where: {
                         id: existingItemInCart.id,
                     },
                     data: {
-                        quantity: existingItemInCart.quantity + newCartItem.quantity,
+                        quantity: newCartItem.quantity,
                     }
                 });
             }
@@ -128,16 +127,18 @@ router.post("/addItem", (req, res) => __awaiter(void 0, void 0, void 0, function
                         id: newCartItem.productId,
                     }
                 });
-                yield db_1.default.cartItem.create({
+                const newItem = yield db_1.default.cartItem.create({
                     data: {
                         productId: newCartItem.productId,
                         cartId: existingCart.id,
                         price: newCartItem.price || (product === null || product === void 0 ? void 0 : product.price) || 0,
                         quantity: newCartItem.quantity,
+                        id: Math.round(Math.random() * 1000000000),
                     }
                 });
+                cartItemId = newItem.id;
             }
-            res.status(201).send({ success: true });
+            res.status(201).send({ success: true, cartItemId });
         }
         else {
             res.status(401).send({
@@ -151,4 +152,28 @@ router.post("/addItem", (req, res) => __awaiter(void 0, void 0, void 0, function
         res.status(500).send({ success: false });
     }
 }));
+router.delete("/:id", (req, res) => {
+    const id = +req.params.id;
+    try {
+        db_1.default.cart.update({
+            where: {
+                id: id,
+            },
+            data: {
+                deletedAt: new Date()
+            }
+        })
+            .then((data) => {
+            res.status(200).send("Cart deleted");
+        })
+            .catch((err) => {
+            console.error(err);
+            res.status(500).send("Server error. Please try later");
+        });
+    }
+    catch (error) {
+        console.error(error);
+        res.status(500).send("Server error. Please try later");
+    }
+});
 exports.default = router;

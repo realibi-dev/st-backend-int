@@ -19,6 +19,22 @@ const getUpdatedRatingAndCount = async (productId: number, newRating: number) =>
     return { rating: averageRating, count: productReviews.length + 1 };
 }
 
+router.get("/reviewedProducts/:orderId", async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const reviewedOrderItems = await prisma.orderItem.findMany({
+            where: {
+                orderId: parseInt(orderId),
+                deletedAt: null,
+            },
+        });
+
+        res.status(200).send({ orderId: +orderId, orderItemIds: reviewedOrderItems.map(item => item.id) });
+    } catch (error) {
+        res.status(500).send(error);
+    }
+});
+
 router.get("/", async (req: Request, res: Response) => {
     try {
         const productReviews: IProductReview[] = await prisma.productReview.findMany({ where: { deletedAt: null } });

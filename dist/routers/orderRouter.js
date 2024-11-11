@@ -17,6 +17,95 @@ const db_1 = __importDefault(require("./../prisma/db"));
 const helpers_1 = __importDefault(require("../helpers"));
 const middlewares_1 = __importDefault(require("../middlewares"));
 const router = (0, express_1.Router)();
+router.post("/financial-report", middlewares_1.default.checkAuthorization, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const currentUser = helpers_1.default.getCurrentUserInfo(req);
+        const financialReportSettings = req.body;
+        const orders = yield db_1.default.order.findMany({
+            where: {
+                deletedAt: null,
+                branchId: financialReportSettings.branchId,
+            }
+        });
+        let orderItems = yield db_1.default.orderItem.findMany({
+            where: {
+                orderId: {
+                    in: orders.map(order => order.id),
+                },
+                deletedAt: null,
+            }
+        });
+        const products = yield db_1.default.product.findMany({
+            where: {
+                id: {
+                    in: orderItems.map(item => item.productId),
+                }
+            }
+        });
+        orderItems = orderItems.map(item => {
+            var _a;
+            return Object.assign(Object.assign({}, item), { productName: (_a = products.find(product => product.id === item.productId)) === null || _a === void 0 ? void 0 : _a.name });
+        });
+        const result = orders.map(order => {
+            return Object.assign(Object.assign({}, order), { items: orderItems.filter(item => item.orderId === order.id) });
+        });
+        res.status(200).send(result);
+    }
+    catch (error) {
+        console.log(error);
+        res.status(500).send(error);
+    }
+}));
+router.get("/userOrderHistory", middlewares_1.default.checkAuthorization, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const currentUser = helpers_1.default.getCurrentUserInfo(req);
+        const userOrders = yield db_1.default.order.findMany({
+            where: {
+                userId: currentUser.id,
+                deletedAt: null,
+            }
+        });
+        const orderItems = yield db_1.default.orderItem.findMany({
+            where: {
+                orderId: {
+                    in: userOrders.map(order => order.id),
+                },
+                deletedAt: null,
+            }
+        });
+        let userOrdersResult = userOrders.map(order => {
+            const currentOrderProducts = orderItems.filter(orderItem => orderItem.orderId === order.id);
+            return Object.assign(Object.assign({}, order), { products: currentOrderProducts });
+        });
+        const branches = yield db_1.default.branch.findMany({
+            where: {
+                deletedAt: null,
+                id: {
+                    in: userOrders.map(order => order.branchId),
+                }
+            }
+        });
+        const products = yield db_1.default.product.findMany({
+            where: {
+                id: {
+                    in: orderItems.map(item => item.productId),
+                }
+            }
+        });
+        userOrdersResult = userOrdersResult.map(item => {
+            var _a, _b;
+            return Object.assign(Object.assign({}, item), { branchName: (_a = branches.find(branch => branch.id === item.branchId)) === null || _a === void 0 ? void 0 : _a.name, branchAddress: (_b = branches.find(branch => branch.id === item.branchId)) === null || _b === void 0 ? void 0 : _b.address, products: item.products.map(product => {
+                    var _a;
+                    return Object.assign(Object.assign({}, product), { cartItemId: product.id, productName: (_a = products.find(pr => pr.id === product.productId)) === null || _a === void 0 ? void 0 : _a.name });
+                }) });
+        });
+        res.status(200).send(userOrdersResult);
+    }
+    catch (error) {
+        console.log(error);
+        res.status(500).send(error);
+    }
+}));
 router.get("/", (req, res) => {
     try {
         db_1.default.order.findMany({
@@ -156,52 +245,58 @@ router.delete("/:id", (req, res) => {
     }
 });
 router.post("/statistics", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const statisticsSettings = req.body;
-    let orderItems = yield db_1.default.orderItem.findMany({
-        where: {
-            AND: [
-                {
-                    deletedAt: null,
-                },
-                {
-                    createdAt: {
-                        gt: new Date(statisticsSettings.startDate),
+    try {
+        const statisticsSettings = req.body;
+        let orderItems = yield db_1.default.orderItem.findMany({
+            where: {
+                AND: [
+                    {
+                        deletedAt: null,
                     },
-                },
-                {
-                    createdAt: {
-                        lt: new Date(statisticsSettings.endDate),
+                    {
+                        createdAt: {
+                            gt: new Date(statisticsSettings.startDate),
+                        },
                     },
-                }
-            ],
-        }
-    });
-    const products = yield db_1.default.product.findMany({
-        where: {
-            id: {
-                in: orderItems.map((item) => item.productId), // [3, 2, 1]
+                    {
+                        createdAt: {
+                            lt: new Date(statisticsSettings.endDate),
+                        },
+                    }
+                ],
             }
-        }
-    });
-    orderItems = orderItems.map((item) => {
-        var _a;
-        return Object.assign(Object.assign({}, item), { productName: (_a = products.find(product => product.id === item.productId)) === null || _a === void 0 ? void 0 : _a.name });
-    });
-    const uniqueProductIds = [...new Set(orderItems.map((item) => item.productId))];
-    const uniqueProducts = uniqueProductIds.map(productId => {
-        const totalQuantity = orderItems.filter((orderItem) => orderItem.productId === productId).reduce((acc, item) => {
-            return acc + item.quantity;
-        }, 0);
-        const totalPriceSum = orderItems.filter((orderItem) => orderItem.productId === productId).reduce((acc, item) => {
-            return acc + (item.price * item.quantity);
-        }, 0);
-        return Object.assign(Object.assign({}, orderItems.find((orderItem) => orderItem.productId === productId)), { quantity: totalQuantity, priceSum: totalPriceSum });
-    });
-    res.status(200).send({
-        products: uniqueProducts,
-        totalSum: uniqueProducts.reduce((acc, item) => {
-            return acc + item.priceSum;
-        }, 0),
-    });
+        });
+        const products = yield db_1.default.product.findMany({
+            where: {
+                id: {
+                    in: orderItems.map((item) => item.productId), // [3, 2, 1]
+                }
+            }
+        });
+        orderItems = orderItems.map((item) => {
+            var _a;
+            return Object.assign(Object.assign({}, item), { productName: (_a = products.find(product => product.id === item.productId)) === null || _a === void 0 ? void 0 : _a.name });
+        });
+        const uniqueProductIds = [...new Set(orderItems.map((item) => item.productId))];
+        const uniqueProducts = uniqueProductIds.map(productId => {
+            const totalQuantity = orderItems.filter((orderItem) => orderItem.productId === productId).reduce((acc, item) => {
+                return acc + item.quantity;
+            }, 0);
+            const totalPriceSum = orderItems.filter((orderItem) => orderItem.productId === productId).reduce((acc, item) => {
+                return acc + (item.price * item.quantity);
+            }, 0);
+            return Object.assign(Object.assign({}, orderItems.find((orderItem) => orderItem.productId === productId)), { quantity: totalQuantity, priceSum: totalPriceSum });
+        });
+        res.status(200).send({
+            products: uniqueProducts,
+            totalSum: uniqueProducts.reduce((acc, item) => {
+                return acc + item.priceSum;
+            }, 0),
+        });
+    }
+    catch (error) {
+        console.log(error);
+        res.status(500).send(error);
+    }
 }));
 exports.default = router;

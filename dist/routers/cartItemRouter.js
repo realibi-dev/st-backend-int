@@ -143,7 +143,8 @@ router.delete("/:id", (req, res) => {
                 id: id,
             },
             data: {
-                deletedAt: new Date()
+                deletedAt: new Date(),
+                updatedAt: new Date(),
             }
         })
             .then((data) => {

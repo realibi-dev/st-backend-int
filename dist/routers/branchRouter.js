@@ -52,7 +52,7 @@ router.post("/", (req, res) => {
     try {
         const branchInfo = req.body;
         db_1.default.branch.create({
-            data: branchInfo,
+            data: Object.assign(Object.assign({}, branchInfo), { id: Math.floor(Math.random() * 1000000000) }),
         })
             .then(() => {
             res.status(201).send("Branch created");

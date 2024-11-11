@@ -20,7 +20,10 @@ const middlewares_1 = __importDefault(require("./../middlewares"));
 const helpers_1 = __importDefault(require("../helpers"));
 dotenv_1.default.config();
 const router = (0, express_1.Router)();
-const secretKey = process.env.SECRET_KEY || "";
+const secretKey = process.env.SECRET_KEY;
+if (!secretKey) {
+    throw new Error('SECRET_KEY not found in environment variables');
+}
 router.get("/getCart", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const currentUserId = helpers_1.default.getCurrentUserInfo(req).id;
@@ -49,7 +52,7 @@ router.get("/getCart", (req, res) => __awaiter(void 0, void 0, void 0, function*
                 cartId: cart.id,
                 items: cartItems.map(item => {
                     const product = products.find(p => p.id === item.productId);
-                    return Object.assign(Object.assign({}, product), { price: item.price || (product === null || product === void 0 ? void 0 : product.price), quantity: item.quantity });
+                    return Object.assign(Object.assign({}, product), { cartItemId: item.id, price: item.price || (product === null || product === void 0 ? void 0 : product.price), quantity: item.quantity });
                 })
             });
         }
@@ -122,11 +125,12 @@ router.post("/auth", (req, res) => __awaiter(void 0, void 0, void 0, function* (
             return;
         }
         // creating token
-        const payload = Object.assign({}, user);
+        const payload = Object.assign(Object.assign({}, user), { iat: Date.now() });
         const options = {
-            expiresIn: '2h'
+            expiresIn: '2y',
         };
         const token = jsonwebtoken_1.default.sign(payload, secretKey, options);
+        console.log("new token", token);
         res.send({
             user: Object.assign(Object.assign({}, user), { password: undefined }),
             token: token,
@@ -168,8 +172,9 @@ router.post("/register", (req, res) => __awaiter(void 0, void 0, void 0, functio
         });
         switch (userInfo.accountType) {
             case 'cafeOwner':
-                db_1.default.branch.create({
+                yield db_1.default.branch.create({
                     data: {
+                        id: Math.floor(Math.random() * 1000000000),
                         name: userInfo.cafeName || '',
                         address: userInfo.cafeAddress || '',
                         contactPerson: userInfo.fullname,
@@ -178,14 +183,8 @@ router.post("/register", (req, res) => __awaiter(void 0, void 0, void 0, functio
                         closeTime: userInfo.closeTime || '',
                         userId: user.id,
                     }
-                })
-                    .then(() => {
-                    console.log("Branch created for user " + userInfo.username);
-                })
-                    .catch((err) => {
-                    console.error(err);
-                    res.status(500).send("Server error. Please try later");
                 });
+                console.log("Branch created for user " + userInfo.username);
                 break;
             case 'provider':
                 db_1.default.providerProfile.create({
