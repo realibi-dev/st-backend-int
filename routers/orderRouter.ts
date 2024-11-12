@@ -88,6 +88,15 @@ router.get("/userOrderHistory", middlewares.checkAuthorization, async (req: Requ
             }
         });
 
+        const productReviews = await prisma.productReview.findMany({
+            where: {
+                deletedAt: null,
+                orderId: {
+                    in: userOrders.map(o => o.id),
+                },
+            }
+        });
+
         const orderItems = await prisma.orderItem.findMany({
             where: {
                 orderId: {
@@ -124,13 +133,17 @@ router.get("/userOrderHistory", middlewares.checkAuthorization, async (req: Requ
         });
 
         userOrdersResult = userOrdersResult.map(item => {
+            const currentOrderReviews = productReviews.filter(review => review.orderId === item.id);
+
             return {
                 ...item,
+                reviewed: currentOrderReviews.map(review => review.orderId).includes(item.id),
                 branchName: branches.find(branch => branch.id === item.branchId)?.name,
                 branchAddress: branches.find(branch => branch.id === item.branchId)?.address,
                 products: item.products.map(product => {
                     return {
                         ...product,
+                        reviewed: currentOrderReviews.map(review => review.productId).includes(product.productId),
                         cartItemId: product.id,
                         productName: products.find(pr => pr.id === product.productId)?.name
                     }
@@ -217,12 +230,16 @@ router.post("/", middlewares.checkAuthorization, async (req: Request, res: Respo
         const orderPayload = { ...orderInfo }
 
         prisma.order.create({
-            data: orderPayload,
+            data: {
+                id: Math.floor(Math.random() * 1000000000),
+                ...orderPayload,
+            },
         })
         .then(async (order) => {
             cartItems.map(async (item) => {
                 await prisma.orderItem.create({
                     data: {
+                        id: Math.floor(Math.random() * 1000000000),
                         productId: item.productId,
                         orderId: order.id,
                         price: item.price || 0,

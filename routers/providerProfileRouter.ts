@@ -122,7 +122,10 @@ router.post("/", (req: Request, res: Response) => {
     try {
         const providerInfo: IProviderProfile = req.body;
         prisma.providerProfile.create({
-            data: providerInfo,
+            data: {
+                id: Math.floor(Math.random() * 1000000000),
+                ...providerInfo,
+            },
         })
         .then(() => {
             res.status(201).send("Provider profile created");

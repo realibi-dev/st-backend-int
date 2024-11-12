@@ -301,7 +301,10 @@ router.post("/", (req: Request, res: Response) => {
         const productInfo: IProduct = req.body;
         console.log("Product info", productInfo);
         prisma.product.create({
-            data: productInfo,
+            data: {
+                id: Math.floor(Math.random() * 1000000000),
+                ...productInfo,
+            },
         })
         .then(() => {
             res.status(201).send("Product created");
@@ -374,6 +377,7 @@ router.post('/changeprice', (req: Request, res: Response) => {
 
         prisma.productNewPrice.create({
             data: {
+                id: Math.floor(Math.random() * 1000000000),
                 userId: data.userId,
                 productId: data.productId,
                 price: data.newPrice,

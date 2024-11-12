@@ -60,7 +60,7 @@ router.post("/", middlewares.checkAuthorization, async (req: Request, res: Respo
         const { productId, rating, comment, orderId } = req.body;
 
         const { rating: updatedRating, count: updatedCount } = await getUpdatedRatingAndCount(productId, rating);
-        const productReview: IProductReview = await prisma.productReview.create({ data: { userId, productId, rating, comment, orderId } });
+        const productReview: IProductReview = await prisma.productReview.create({ data: { id: Math.floor(Math.random() * 1000000000), userId, productId, rating, comment, orderId } });
         await prisma.product.update({ where: { id: productId }, data: { rating: updatedRating, reviewsCount: updatedCount } });
         res.json(productReview);
     } catch (error) {

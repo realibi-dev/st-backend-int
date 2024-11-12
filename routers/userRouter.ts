@@ -192,6 +192,7 @@ router.post("/register", async (req: Request, res: Response) => {
 
         const user = await prisma.user.create({
             data: {
+                id: Math.floor(Math.random() * 1000000000),
                 username: userInfo.username,
                 password: userInfo.password,
                 accountType: userInfo.accountType,
@@ -219,6 +220,7 @@ router.post("/register", async (req: Request, res: Response) => {
             case 'provider':
                 prisma.providerProfile.create({
                     data: {
+                        id: Math.floor(Math.random() * 1000000000),
                         name: userInfo.providerCompanyName || "",
                         userId: user.id,
                     }

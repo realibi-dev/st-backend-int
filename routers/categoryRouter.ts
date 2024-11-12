@@ -72,7 +72,10 @@ router.post("/", (req: Request, res: Response) => {
     try {
         const categoryInfo: ICategory = req.body;
         prisma.category.create({
-            data: categoryInfo,
+            data: {
+                id: Math.floor(Math.random() * 1000000000),
+                ...categoryInfo,
+            },
         })
         .then(() => {
             res.status(201).send("Category created");
@@ -91,7 +94,10 @@ router.post("/subCategories", (req: Request, res: Response) => {
     try {
         const subCategoryInfo: ISubCategory = req.body;
         prisma.subCategory.create({
-            data: subCategoryInfo,
+            data: {
+                id: Math.floor(Math.random() * 1000000000),
+                ...subCategoryInfo,
+            },
         })
         .then(() => {
             res.status(201).send("Subcategory created");

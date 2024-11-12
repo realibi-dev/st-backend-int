@@ -62,7 +62,10 @@ router.post("/", (req: Request, res: Response) => {
     try {
         const cartInfo: ICart = req.body;
         prisma.cart.create({
-            data: cartInfo,
+            data: {
+                id: Math.floor(Math.random() * 1000000000),
+                ...cartInfo,
+            },
         })
         .then(() => {
             res.status(201).send("Cart created");
@@ -92,6 +95,7 @@ router.post("/addItem", async (req: Request, res: Response) => {
             if (!existingCart) {
                 existingCart = await prisma.cart.create({
                     data: {
+                        id: Math.floor(Math.random() * 1000000000),
                         userId: currentUserId,
                     }
                 });
@@ -126,11 +130,11 @@ router.post("/addItem", async (req: Request, res: Response) => {
 
                 const newItem = await prisma.cartItem.create({
                     data: {
+                        id: Math.floor(Math.random() * 1000000000),
                         productId: newCartItem.productId,
                         cartId: existingCart.id,
                         price: newCartItem.price || product?.price || 0,
                         quantity: newCartItem.quantity,
-                        id: Math.round(Math.random() * 1000000000),
                     }
                 });
                 cartItemId = newItem.id;

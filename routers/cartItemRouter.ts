@@ -76,6 +76,7 @@ router.post("/", async (req: Request, res: Response) => {
             if (!cart) {
                 cart = await prisma.cart.create({
                     data: {
+                        id: Math.floor(Math.random() * 1000000000),
                         userId: currentUser.id,
                     }
                 });
@@ -91,6 +92,7 @@ router.post("/", async (req: Request, res: Response) => {
                 if (product) {
                     prisma.cartItem.create({
                         data: {
+                            id: Math.floor(Math.random() * 1000000000),
                             ...cartItemInfo,
                             cartId: cart.id,
                             price: cartItemInfo.price || product?.price,
