@@ -34,14 +34,14 @@ router.post("/uploadProductImage", upload.single("image"), (req: Request, res: R
                 id: +productId
             },
             data: {
-                image: `http://localhost:8080/file/product_images/${random}.png`,
+                image: `/file/product_images/${random}.png`,
             }
         })
         .then(() => {
             res
             .status(200)
             .contentType("text/plain")
-            .end("File uploaded!");
+            .end(`/file/product_images/${random}.png`);
         })
         .catch(err => {
             handleError(err, res);
@@ -75,14 +75,14 @@ router.post("/uploadUserImage", upload.single("image"), (req: Request, res: Resp
                 id: +userId
             },
             data: {
-                image: `http://localhost:8080/file/user_images/${random}.png`,
+                image: `/file/user_images/${random}.png`,
             }
         })
         .then(() => {
             res
             .status(200)
             .contentType("text/plain")
-            .end("File uploaded!");
+            .end(`/file/user_images/${random}.png`);
         })
         .catch(err => {
             handleError(err, res);
@@ -107,6 +107,8 @@ router.post("/uploadSubCategoryImage", upload.single("image"), (req: Request, re
 
   const subCategoryId = req.body.subCategoryId;
 
+  console.log("subCategoryId", subCategoryId);
+
   if (path.extname(req.file?.originalname || "file.png").toLowerCase() === ".png") {
     fs.rename(tempPath || "", targetPath, async err => {
       if (err) return handleError(err, res);
@@ -116,14 +118,14 @@ router.post("/uploadSubCategoryImage", upload.single("image"), (req: Request, re
               id: +subCategoryId
           },
           data: {
-              image: `http://localhost:8080/file/subcategories_images/${random}.png`,
+              image: `/file/subcategories_images/${random}.png`,
           }
       })
       .then(() => {
           res
           .status(200)
           .contentType("text/plain")
-          .end("File uploaded!");
+          .end(`/file/subcategories_images/${random}.png`);
       })
       .catch(err => {
           handleError(err, res);

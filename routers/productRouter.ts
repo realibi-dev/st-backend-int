@@ -109,6 +109,8 @@ router.post("/filter", async (req: Request, res: Response) => {
             deletedAt: null,
         };
 
+        console.log("FILTERS", filters);
+
         if ("name" in filters) {
             searchConditions.name = {
                 contains: filters.name?.toLowerCase(),
@@ -175,6 +177,8 @@ router.post("/filter", async (req: Request, res: Response) => {
             where: searchConditions,
         });
 
+        console.log("products", products);
+
         const currentUserId = req.body?.userId || helpers.getCurrentUserInfo(req)?.id;
 
         if (currentUserId) {
@@ -197,6 +201,9 @@ router.post("/filter", async (req: Request, res: Response) => {
                 return;
             }
         }
+
+        console.log("SEARCH CONDITIONS", searchConditions);
+        
 
         res.status(200).send(products);
     } catch(error) {
