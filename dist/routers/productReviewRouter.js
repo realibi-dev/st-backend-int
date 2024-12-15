@@ -18,7 +18,7 @@ const helpers_1 = __importDefault(require("./../helpers"));
 const middlewares_1 = __importDefault(require("../middlewares"));
 const router = (0, express_1.Router)();
 const getUpdatedRatingAndCount = (productId, newRating) => __awaiter(void 0, void 0, void 0, function* () {
-    const productReviews = yield db_1.default.productReview.findMany({ where: { productId, deletedAt: null } });
+    const productReviews = yield db_1.default.productReview.findMany({ where: { productId, deletedAt: null, approved: true } });
     const totalRating = productReviews.reduce((acc, review) => acc + review.rating, 0) + newRating;
     const averageRating = totalRating / (productReviews.length + 1);
     return { rating: averageRating, count: productReviews.length + 1 };
@@ -50,7 +50,7 @@ router.get("/", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
 router.get("/product/:productId", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { productId } = req.params;
-        const productReviews = yield db_1.default.productReview.findMany({ where: { productId: parseInt(productId), deletedAt: null } });
+        const productReviews = yield db_1.default.productReview.findMany({ where: { productId: parseInt(productId), deletedAt: null, approved: true } });
         res.json(productReviews);
     }
     catch (error) {
@@ -62,7 +62,7 @@ router.post("/", middlewares_1.default.checkAuthorization, (req, res) => __await
         const userId = helpers_1.default.getCurrentUserInfo(req).id;
         const { productId, rating, comment, orderId } = req.body;
         const { rating: updatedRating, count: updatedCount } = yield getUpdatedRatingAndCount(productId, rating);
-        const productReview = yield db_1.default.productReview.create({ data: { userId, productId, rating, comment, orderId } });
+        const productReview = yield db_1.default.productReview.create({ data: { id: Math.floor(Math.random() * 1000000000), userId, productId, rating, comment, orderId } });
         yield db_1.default.product.update({ where: { id: productId }, data: { rating: updatedRating, reviewsCount: updatedCount } });
         res.json(productReview);
     }

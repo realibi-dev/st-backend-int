@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import prisma from "./../prisma/db";
 import middlewares from "../middlewares";
+import helpers from "../helpers";
 const router: Router = Router();
 
 interface IBranch {
@@ -15,10 +16,14 @@ interface IBranch {
     isVerified: boolean|undefined; // need only for put request
 }
 
-router.get("/", (req: Request, res: Response) => {
+router.get("/", middlewares.checkAuthorization, (req: Request, res: Response) => {
     try {
+        const currentUser = helpers.getCurrentUserInfo(req);
+        console.log("currentUser", currentUser);
+
         prisma.branch.findMany({
             where: {
+                ...(currentUser && { userId: currentUser.id }),
                 deletedAt: null,
             }
         })

@@ -34,9 +34,10 @@ router.get('/filterData', (req, res) => __awaiter(void 0, void 0, void 0, functi
         res.status(500).send("Server error. Please try later");
     }
 }));
-router.get("/", (req, res) => {
+router.get("/", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
     try {
-        db_1.default.product.findMany({
+        let data = yield db_1.default.product.findMany({
             where: {
                 deletedAt: null,
             },
@@ -45,77 +46,96 @@ router.get("/", (req, res) => {
                 { rating: 'desc' },
                 { reviewsCount: 'desc' },
             ]
-        })
-            .then((data) => __awaiter(void 0, void 0, void 0, function* () {
-            var _a, _b;
-            const currentUserId = ((_a = req.body) === null || _a === void 0 ? void 0 : _a.userId) || ((_b = helpers_1.default.getCurrentUserInfo(req)) === null || _b === void 0 ? void 0 : _b.id);
-            if (currentUserId) {
-                const newPriceProducts = yield db_1.default.productNewPrice.findMany({
-                    where: {
-                        deletedAt: null,
-                        userId: currentUserId
-                    },
+        });
+        const currentUserId = ((_a = req.body) === null || _a === void 0 ? void 0 : _a.userId) || ((_b = helpers_1.default.getCurrentUserInfo(req)) === null || _b === void 0 ? void 0 : _b.id);
+        if (currentUserId) {
+            const newPriceProducts = yield db_1.default.productNewPrice.findMany({
+                where: {
+                    deletedAt: null,
+                    userId: currentUserId
+                },
+            });
+            if (newPriceProducts.length) {
+                let productsWithUpdatedPrices = data.map(product => {
+                    var _a;
+                    return Object.assign(Object.assign({}, product), { price: ((_a = newPriceProducts.find(item => item.productId === product.id)) === null || _a === void 0 ? void 0 : _a.price) || product.price });
                 });
-                if (newPriceProducts.length) {
-                    let productsWithUpdatedPrices = data.map(product => {
-                        var _a;
-                        return Object.assign(Object.assign({}, product), { price: ((_a = newPriceProducts.find(item => item.productId === product.id)) === null || _a === void 0 ? void 0 : _a.price) || product.price });
-                    });
-                    res.status(200).send(productsWithUpdatedPrices);
-                    return;
+                res.status(200).send(productsWithUpdatedPrices);
+                return;
+            }
+        }
+        const productBadgeRelations = yield db_1.default.productBadge.findMany({
+            where: {
+                deletedAt: null,
+                productId: {
+                    in: data.map(product => product.id),
                 }
             }
-            res.status(200).send(data);
-        }))
-            .catch((err) => {
-            console.error(err);
-            res.status(500).send("Server error. Please try later");
         });
+        const badges = yield db_1.default.badge.findMany({
+            where: {
+                deletedAt: null,
+                id: {
+                    in: productBadgeRelations.map(pb => pb.badgeId),
+                }
+            }
+        });
+        const badgeWithProductIds = badges.map(badge => {
+            return Object.assign(Object.assign({}, badge), { productIds: productBadgeRelations
+                    .filter(pb => pb.badgeId === badge.id)
+                    .map(pb => pb.productId) });
+        });
+        const providers = yield db_1.default.providerProfile.findMany({
+            where: {
+                deletedAt: null
+            },
+        });
+        data = data.map(product => {
+            var _a;
+            return (Object.assign(Object.assign({}, product), { providerName: (_a = providers.find(p => p.id === product.providerId)) === null || _a === void 0 ? void 0 : _a.name, 
+                // @ts-ignore
+                badges: badgeWithProductIds.reduce((acc, item) => {
+                    if (item.productIds.includes(product.id)) {
+                        return [...acc, item.name];
+                    }
+                    else {
+                        return acc;
+                    }
+                }, []) }));
+        });
+        res.status(200).send(data);
     }
     catch (error) {
         console.error(error);
         res.status(500).send("Server error. Please try later");
     }
-});
+}));
 router.post("/filter", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c;
+    var _a, _b;
     try {
         const filters = req.body;
         const searchConditions = {
             deletedAt: null,
         };
-        if ("name" in filters) {
-            searchConditions.name = {
-                contains: (_a = filters.name) === null || _a === void 0 ? void 0 : _a.toLowerCase(),
-                mode: 'insensitive',
-            };
+        if ("minPrice" in filters && "maxPrice" in filters) {
+            searchConditions.AND = [
+                {
+                    // @ts-ignore
+                    price: { gte: +filters.minPrice },
+                },
+                {
+                    // @ts-ignore
+                    price: { lte: +filters.maxPrice },
+                },
+            ];
         }
-        if ("minPrice" in filters) {
-            searchConditions.price = {
-                gte: filters.minPrice,
-            };
+        else if ("minPrice" in filters) {
+            // @ts-ignore
+            searchConditions.price = { gte: +filters.minPrice };
         }
-        if ("maxPrice" in filters) {
-            if ("minPrice" in filters) {
-                delete searchConditions.price;
-                searchConditions.AND = [
-                    {
-                        price: {
-                            gte: filters.minPrice,
-                        }
-                    },
-                    {
-                        price: {
-                            lte: filters.maxPrice,
-                        }
-                    }
-                ];
-            }
-            else {
-                searchConditions.price = {
-                    lte: filters['maxPrice'],
-                };
-            }
+        else if ("maxPrice" in filters) {
+            // @ts-ignore
+            searchConditions.price = { lte: +filters.maxPrice };
         }
         if ("providerIds" in filters) {
             searchConditions.providerId = {
@@ -133,7 +153,7 @@ router.post("/filter", (req, res) => __awaiter(void 0, void 0, void 0, function*
                 price: filters.sortingMethod,
             };
         }
-        const products = yield db_1.default.product.findMany({
+        let products = yield db_1.default.product.findMany({
             orderBy: [
                 { orderCoefficient: 'desc' },
                 { rating: 'desc' },
@@ -142,12 +162,55 @@ router.post("/filter", (req, res) => __awaiter(void 0, void 0, void 0, function*
             ],
             where: searchConditions,
         });
-        const currentUserId = ((_b = req.body) === null || _b === void 0 ? void 0 : _b.userId) || ((_c = helpers_1.default.getCurrentUserInfo(req)) === null || _c === void 0 ? void 0 : _c.id);
+        if ("name" in filters) {
+            // @ts-ignore
+            products = products.filter(product => product.name.toLowerCase().includes(filters.name.toLowerCase()));
+        }
+        const productBadgeRelations = yield db_1.default.productBadge.findMany({
+            where: {
+                deletedAt: null,
+                productId: {
+                    in: products.map(product => product.id),
+                }
+            }
+        });
+        const badges = yield db_1.default.badge.findMany({
+            where: {
+                deletedAt: null,
+                id: {
+                    in: productBadgeRelations.map(pb => pb.badgeId),
+                }
+            }
+        });
+        const badgeWithProductIds = badges.map(badge => {
+            return Object.assign(Object.assign({}, badge), { productIds: productBadgeRelations
+                    .filter(pb => pb.badgeId === badge.id)
+                    .map(pb => pb.productId) });
+        });
+        const providers = yield db_1.default.providerProfile.findMany({
+            where: {
+                deletedAt: null
+            },
+        });
+        products = products.map(product => {
+            var _a;
+            return (Object.assign(Object.assign({}, product), { providerName: (_a = providers.find(p => p.id === product.providerId)) === null || _a === void 0 ? void 0 : _a.name, 
+                // @ts-ignore
+                badges: badgeWithProductIds.reduce((acc, item) => {
+                    if (item.productIds.includes(product.id)) {
+                        return [...acc, item.name];
+                    }
+                    else {
+                        return acc;
+                    }
+                }, []) }));
+        });
+        const currentUserId = ((_a = req.body) === null || _a === void 0 ? void 0 : _a.userId) || ((_b = helpers_1.default.getCurrentUserInfo(req)) === null || _b === void 0 ? void 0 : _b.id);
         if (currentUserId) {
             const newPriceProducts = yield db_1.default.productNewPrice.findMany({
                 where: {
                     deletedAt: null,
-                    userId: currentUserId
+                    userId: +currentUserId
                 }
             });
             if (newPriceProducts.length) {
@@ -166,90 +229,152 @@ router.post("/filter", (req, res) => __awaiter(void 0, void 0, void 0, function*
         res.status(500).send(error);
     }
 }));
-router.get("/subCategory/:subCategoryId", (req, res) => {
-    // TODO: test this endpoint with userId in req body
+router.get("/subCategory/:subCategoryId", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
     try {
         const subCategoryId = +req.params.subCategoryId;
-        db_1.default.product.findMany({
+        let data = yield db_1.default.product.findMany({
             where: {
                 deletedAt: null,
                 subCategoryId,
             }
-        })
-            .then((data) => __awaiter(void 0, void 0, void 0, function* () {
-            var _a, _b;
-            const currentUserId = ((_a = req.body) === null || _a === void 0 ? void 0 : _a.userId) || ((_b = helpers_1.default.getCurrentUserInfo(req)) === null || _b === void 0 ? void 0 : _b.id);
-            if (currentUserId) {
-                const newPriceProducts = yield db_1.default.productNewPrice.findMany({
-                    where: {
-                        deletedAt: null,
-                        userId: currentUserId
-                    }
+        });
+        const currentUserId = ((_a = req.body) === null || _a === void 0 ? void 0 : _a.userId) || ((_b = helpers_1.default.getCurrentUserInfo(req)) === null || _b === void 0 ? void 0 : _b.id);
+        if (currentUserId) {
+            const newPriceProducts = yield db_1.default.productNewPrice.findMany({
+                where: {
+                    deletedAt: null,
+                    userId: currentUserId
+                }
+            });
+            if (newPriceProducts.length) {
+                const productsWithUpdatedPrices = data.map(product => {
+                    var _a;
+                    return Object.assign(Object.assign({}, product), { price: ((_a = newPriceProducts.find(item => item.productId === product.id)) === null || _a === void 0 ? void 0 : _a.price) || product.price });
                 });
-                if (newPriceProducts.length) {
-                    const productsWithUpdatedPrices = data.map(product => {
-                        var _a;
-                        return Object.assign(Object.assign({}, product), { price: ((_a = newPriceProducts.find(item => item.productId === product.id)) === null || _a === void 0 ? void 0 : _a.price) || product.price });
-                    });
-                    res.status(200).send(productsWithUpdatedPrices);
-                    return;
+                res.status(200).send(productsWithUpdatedPrices);
+                return;
+            }
+        }
+        const productBadgeRelations = yield db_1.default.productBadge.findMany({
+            where: {
+                deletedAt: null,
+                productId: {
+                    in: data.map(product => product.id),
                 }
             }
-            res.status(200).send(data);
-        }))
-            .catch((err) => {
-            console.error(err);
-            res.status(500).send("Server error. Please try later");
         });
+        const badges = yield db_1.default.badge.findMany({
+            where: {
+                deletedAt: null,
+                id: {
+                    in: productBadgeRelations.map(pb => pb.badgeId),
+                }
+            }
+        });
+        const badgeWithProductIds = badges.map(badge => {
+            return Object.assign(Object.assign({}, badge), { productIds: productBadgeRelations
+                    .filter(pb => pb.badgeId === badge.id)
+                    .map(pb => pb.productId) });
+        });
+        const providers = yield db_1.default.providerProfile.findMany({
+            where: {
+                deletedAt: null
+            },
+        });
+        data = data.map(product => {
+            var _a;
+            return (Object.assign(Object.assign({}, product), { providerName: (_a = providers.find(p => p.id === product.id)) === null || _a === void 0 ? void 0 : _a.name, 
+                // @ts-ignore
+                badges: badgeWithProductIds.reduce((acc, item) => {
+                    if (item.productIds.includes(product.id)) {
+                        return [...acc, item.name];
+                    }
+                    else {
+                        return acc;
+                    }
+                }, []) }));
+        });
+        res.status(200).send(data);
     }
     catch (error) {
         console.error(error);
         res.status(500).send("Server error. Please try later");
     }
-});
-router.get("/:id", (req, res) => {
+}));
+router.get("/:id", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b, _c;
     const id = +req.params.id;
     try {
-        db_1.default.product.findFirst({
+        let data = yield db_1.default.product.findFirst({
             where: {
                 deletedAt: null,
                 id: id,
             }
-        })
-            .then((data) => __awaiter(void 0, void 0, void 0, function* () {
-            var _a, _b;
-            const currentUserId = ((_a = req.body) === null || _a === void 0 ? void 0 : _a.userId) || ((_b = helpers_1.default.getCurrentUserInfo(req)) === null || _b === void 0 ? void 0 : _b.id);
-            if (currentUserId) {
-                const newPriceProduct = yield db_1.default.productNewPrice.findFirst({
-                    where: {
-                        deletedAt: null,
-                        userId: currentUserId,
-                        productId: id,
-                    }
-                });
-                if (newPriceProduct) {
-                    res.status(200).send(Object.assign(Object.assign({}, data), { price: newPriceProduct.price || (data === null || data === void 0 ? void 0 : data.price) }));
-                    return;
+        });
+        const currentUserId = ((_a = req.body) === null || _a === void 0 ? void 0 : _a.userId) || ((_b = helpers_1.default.getCurrentUserInfo(req)) === null || _b === void 0 ? void 0 : _b.id);
+        if (currentUserId) {
+            const newPriceProduct = yield db_1.default.productNewPrice.findFirst({
+                where: {
+                    deletedAt: null,
+                    userId: currentUserId,
+                    productId: id,
+                }
+            });
+            if (newPriceProduct) {
+                res.status(200).send(Object.assign(Object.assign({}, data), { price: newPriceProduct.price || (data === null || data === void 0 ? void 0 : data.price) }));
+                return;
+            }
+        }
+        const productBadgeRelations = yield db_1.default.productBadge.findMany({
+            where: {
+                deletedAt: null,
+                productId: data === null || data === void 0 ? void 0 : data.id,
+            }
+        });
+        const badges = yield db_1.default.badge.findMany({
+            where: {
+                deletedAt: null,
+                id: {
+                    in: productBadgeRelations.map(pb => pb.badgeId),
                 }
             }
-            res.status(200).send(data);
-        }))
-            .catch((err) => {
-            console.error(err);
-            res.status(500).send("Server error. Please try later");
         });
+        const badgeWithProductIds = badges.map(badge => {
+            return Object.assign(Object.assign({}, badge), { productIds: productBadgeRelations
+                    .filter(pb => pb.badgeId === badge.id)
+                    .map(pb => pb.productId) });
+        });
+        // @ts-ignore
+        const _badges = badgeWithProductIds.reduce((acc, item) => {
+            // @ts-ignore
+            if (item.productIds.includes(data === null || data === void 0 ? void 0 : data.id)) {
+                return [...acc, item.name];
+            }
+            else {
+                return acc;
+            }
+        }, []);
+        const providers = yield db_1.default.providerProfile.findMany({
+            where: {
+                deletedAt: null
+            },
+        });
+        // @ts-ignore
+        data.providerName = (_c = providers.find(p => p.id === data.providerId)) === null || _c === void 0 ? void 0 : _c.name;
+        res.status(200).send(Object.assign(Object.assign({}, data), { badges: _badges }));
     }
     catch (error) {
         console.error(error);
         res.status(500).send("Server error. Please try later");
     }
-});
+}));
 router.post("/", (req, res) => {
     try {
         const productInfo = req.body;
         console.log("Product info", productInfo);
         db_1.default.product.create({
-            data: productInfo,
+            data: Object.assign({ id: Math.floor(Math.random() * 1000000000) }, productInfo),
         })
             .then(() => {
             res.status(201).send("Product created");
@@ -316,6 +441,7 @@ router.post('/changeprice', (req, res) => {
         const data = req.body;
         db_1.default.productNewPrice.create({
             data: {
+                id: Math.floor(Math.random() * 1000000000),
                 userId: data.userId,
                 productId: data.productId,
                 price: data.newPrice,

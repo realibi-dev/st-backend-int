@@ -49,9 +49,9 @@ router.get('/filterData', async (req: Request, res: Response) => {
     }
 })
 
-router.get("/", (req: Request, res: Response) => {
+router.get("/", async (req: Request, res: Response) => {
     try {
-        prisma.product.findMany({
+        let data = await prisma.product.findMany({
             where: {
                 deletedAt: null,
             },
@@ -61,36 +61,77 @@ router.get("/", (req: Request, res: Response) => {
                 { reviewsCount: 'desc' },
             ]
         })
-        .then(async (data) => {
-            const currentUserId = req.body?.userId || helpers.getCurrentUserInfo(req)?.id;
-            
-            if (currentUserId) {
-                const newPriceProducts = await prisma.productNewPrice.findMany({
-                    where: {
-                        deletedAt: null,
-                        userId: currentUserId
-                    },
+
+        const currentUserId = req.body?.userId || helpers.getCurrentUserInfo(req)?.id;
+
+        if (currentUserId) {
+            const newPriceProducts = await prisma.productNewPrice.findMany({
+                where: {
+                    deletedAt: null,
+                    userId: currentUserId
+                },
+            });
+
+            if (newPriceProducts.length) {
+                let productsWithUpdatedPrices = data.map(product => {
+                    return {
+                        ...product,
+                        price: newPriceProducts.find(item => item.productId === product.id)?.price || product.price,
+                    }
                 });
 
-                if (newPriceProducts.length) {
-                    let productsWithUpdatedPrices = data.map(product => {
-                        return {
-                            ...product,
-                            price: newPriceProducts.find(item => item.productId === product.id)?.price || product.price,
-                        }
-                    });
+                res.status(200).send(productsWithUpdatedPrices);
+                return;
+            }
+        }
 
-                    res.status(200).send(productsWithUpdatedPrices);
-                    return;
+        const productBadgeRelations = await prisma.productBadge.findMany({
+            where: {
+                deletedAt: null,
+                productId: {
+                    in: data.map(product => product.id),
                 }
             }
-
-            res.status(200).send(data);
         })
-        .catch((err) => {
-            console.error(err);
-            res.status(500).send("Server error. Please try later");
+
+        const badges = await prisma.badge.findMany({
+            where: {
+                deletedAt: null,
+                id: {
+                    in: productBadgeRelations.map(pb => pb.badgeId),
+                }
+            }
         });
+
+        const badgeWithProductIds = badges.map(badge => {
+            return {
+                ...badge,
+                productIds: productBadgeRelations
+                    .filter(pb => pb.badgeId === badge.id)
+                    .map(pb => pb.productId),
+            }
+        });
+
+        const providers = await prisma.providerProfile.findMany({
+            where: {
+                deletedAt: null
+            },
+        });
+
+        data = data.map(product => ({
+            ...product,
+            providerName: providers.find(p => p.id === product.providerId)?.name,
+            // @ts-ignore
+            badges: badgeWithProductIds.reduce((acc, item) => {
+                if (item.productIds.includes(product.id)) {
+                    return [...acc, item.name];
+                } else {
+                    return acc;
+                }
+            }, []),
+        }));
+
+        res.status(200).send(data);
     } catch (error) {
         console.error(error);
         res.status(500).send("Server error. Please try later");
@@ -109,42 +150,23 @@ router.post("/filter", async (req: Request, res: Response) => {
             deletedAt: null,
         };
 
-        console.log("FILTERS", filters);
-
-        if ("name" in filters) {
-            searchConditions.name = {
-                contains: filters.name?.toLowerCase(),
-                mode: 'insensitive',
-            }
-        }
-
-        if ("minPrice" in filters) {
-            searchConditions.price = {
-                gte: filters.minPrice,
-            };
-        }
-
-        if ("maxPrice" in filters) {
-            if ("minPrice" in filters) {
-                delete searchConditions.price;
-
-                searchConditions.AND = [
-                    {
-                        price: {
-                            gte: filters.minPrice,
-                        }
-                    },
-                    {
-                        price: {
-                            lte: filters.maxPrice,
-                        }
-                    }
-                ]
-            } else {
-                searchConditions.price = {
-                    lte: filters['maxPrice'],
-                };
-            }
+        if ("minPrice" in filters && "maxPrice" in filters) {
+            searchConditions.AND = [
+                {
+                    // @ts-ignore
+                    price: { gte: +filters.minPrice },
+                },
+                {
+                    // @ts-ignore
+                    price: { lte: +filters.maxPrice },
+                },
+            ];
+        } else if ("minPrice" in filters) {
+            // @ts-ignore
+            searchConditions.price = { gte: +filters.minPrice };
+        } else if ("maxPrice" in filters) {
+            // @ts-ignore
+            searchConditions.price = { lte: +filters.maxPrice };
         }
 
         if ("providerIds" in filters) {
@@ -167,7 +189,7 @@ router.post("/filter", async (req: Request, res: Response) => {
             }
         }
 
-        const products = await prisma.product.findMany({
+        let products = await prisma.product.findMany({
             orderBy: [
                 { orderCoefficient: 'desc' },
                 { rating: 'desc' },
@@ -177,7 +199,56 @@ router.post("/filter", async (req: Request, res: Response) => {
             where: searchConditions,
         });
 
-        console.log("products", products);
+        if ("name" in filters) {
+            // @ts-ignore
+            products = products.filter(product => product.name.toLowerCase().includes(filters.name.toLowerCase()));
+        }
+
+        const productBadgeRelations = await prisma.productBadge.findMany({
+            where: {
+                deletedAt: null,
+                productId: {
+                    in: products.map(product => product.id),
+                }
+            }
+        })
+
+        const badges = await prisma.badge.findMany({
+            where: {
+                deletedAt: null,
+                id: {
+                    in: productBadgeRelations.map(pb => pb.badgeId),
+                }
+            }
+        });
+
+        const badgeWithProductIds = badges.map(badge => {
+            return {
+                ...badge,
+                productIds: productBadgeRelations
+                  .filter(pb => pb.badgeId === badge.id)
+                  .map(pb => pb.productId),
+            }
+        });
+
+        const providers = await prisma.providerProfile.findMany({
+            where: {
+                deletedAt: null
+            },
+        });
+
+        products = products.map(product => ({
+            ...product,
+            providerName: providers.find(p => p.id === product.providerId)?.name,
+            // @ts-ignore
+            badges: badgeWithProductIds.reduce((acc, item) => {
+                if (item.productIds.includes(product.id)) {
+                    return [...acc, item.name];
+                } else {
+                    return acc;
+                }
+            }, []),
+        }));
 
         const currentUserId = req.body?.userId || helpers.getCurrentUserInfo(req)?.id;
 
@@ -185,7 +256,7 @@ router.post("/filter", async (req: Request, res: Response) => {
             const newPriceProducts = await prisma.productNewPrice.findMany({
                 where: {
                     deletedAt: null,
-                    userId: currentUserId
+                    userId: +currentUserId
                 }
             });
 
@@ -202,9 +273,6 @@ router.post("/filter", async (req: Request, res: Response) => {
             }
         }
 
-        console.log("SEARCH CONDITIONS", searchConditions);
-        
-
         res.status(200).send(products);
     } catch(error) {
         console.error(error);
@@ -212,91 +280,168 @@ router.post("/filter", async (req: Request, res: Response) => {
     }
 })
 
-router.get("/subCategory/:subCategoryId", (req: Request, res: Response) => {
-    // TODO: test this endpoint with userId in req body
-
+router.get("/subCategory/:subCategoryId", async (req: Request, res: Response) => {
     try {
         const subCategoryId = +req.params.subCategoryId;
 
-        prisma.product.findMany({
+        let data = await prisma.product.findMany({
             where: {
                 deletedAt: null,
                 subCategoryId,
             }
         })
-        .then(async (data) => {
-            const currentUserId = req.body?.userId || helpers.getCurrentUserInfo(req)?.id;
-            
-            if (currentUserId) {
-                const newPriceProducts = await prisma.productNewPrice.findMany({
-                    where: {
-                        deletedAt: null,
-                        userId: currentUserId
+
+        const currentUserId = req.body?.userId || helpers.getCurrentUserInfo(req)?.id;
+
+        if (currentUserId) {
+            const newPriceProducts = await prisma.productNewPrice.findMany({
+                where: {
+                    deletedAt: null,
+                    userId: currentUserId
+                }
+            });
+
+            if (newPriceProducts.length) {
+                const productsWithUpdatedPrices = data.map(product => {
+                    return {
+                        ...product,
+                        price: newPriceProducts.find(item => item.productId === product.id)?.price || product.price,
                     }
                 });
 
-                if (newPriceProducts.length) {
-                    const productsWithUpdatedPrices = data.map(product => {
-                        return {
-                            ...product,
-                            price: newPriceProducts.find(item => item.productId === product.id)?.price || product.price,
-                        }
-                    });
+                res.status(200).send(productsWithUpdatedPrices);
+                return;
+            }
+        }
 
-                    res.status(200).send(productsWithUpdatedPrices);
-                    return;
+        const productBadgeRelations = await prisma.productBadge.findMany({
+            where: {
+                deletedAt: null,
+                productId: {
+                    in: data.map(product => product.id),
                 }
             }
-
-            res.status(200).send(data);
         })
-        .catch((err) => {
-            console.error(err);
-            res.status(500).send("Server error. Please try later");
+
+        const badges = await prisma.badge.findMany({
+            where: {
+                deletedAt: null,
+                id: {
+                    in: productBadgeRelations.map(pb => pb.badgeId),
+                }
+            }
         });
+
+        const badgeWithProductIds = badges.map(badge => {
+            return {
+                ...badge,
+                productIds: productBadgeRelations
+                  .filter(pb => pb.badgeId === badge.id)
+                  .map(pb => pb.productId),
+            }
+        });
+
+        const providers = await prisma.providerProfile.findMany({
+            where: {
+                deletedAt: null
+            },
+        });
+        data = data.map(product => ({
+            ...product,
+            providerName: providers.find(p => p.id === product.id)?.name,
+            // @ts-ignore
+            badges: badgeWithProductIds.reduce((acc, item) => {
+                if (item.productIds.includes(product.id)) {
+                    return [...acc, item.name];
+                } else {
+                    return acc;
+                }
+            }, []),
+        }));
+
+        res.status(200).send(data);
     } catch (error) {
         console.error(error);
         res.status(500).send("Server error. Please try later");
     }
 })
 
-router.get("/:id", (req: Request, res: Response) => {
+router.get("/:id", async (req: Request, res: Response) => {
     const id = +req.params.id;
 
     try {
-        prisma.product.findFirst({
+        let data = await prisma.product.findFirst({
             where: {
                 deletedAt: null,
                 id: id,
             }
         })
-        .then(async (data) => {
-            const currentUserId = req.body?.userId || helpers.getCurrentUserInfo(req)?.id;
-            
-            if (currentUserId) {
-                const newPriceProduct = await prisma.productNewPrice.findFirst({
-                    where: {
-                        deletedAt: null,
-                        userId: currentUserId,
-                        productId: id,
-                    }
-                });
 
-                if (newPriceProduct) {
-                    res.status(200).send({
-                        ...data,
-                        price: newPriceProduct.price || data?.price,
-                    })
-                    return;
+        const currentUserId = req.body?.userId || helpers.getCurrentUserInfo(req)?.id;
+
+        if (currentUserId) {
+            const newPriceProduct = await prisma.productNewPrice.findFirst({
+                where: {
+                    deletedAt: null,
+                    userId: currentUserId,
+                    productId: id,
+                }
+            });
+
+            if (newPriceProduct) {
+                res.status(200).send({
+                    ...data,
+                    price: newPriceProduct.price || data?.price,
+                })
+                return;
+            }
+        }
+
+        const productBadgeRelations = await prisma.productBadge.findMany({
+            where: {
+                deletedAt: null,
+                productId: data?.id,
+            }
+        })
+
+        const badges = await prisma.badge.findMany({
+            where: {
+                deletedAt: null,
+                id: {
+                    in: productBadgeRelations.map(pb => pb.badgeId),
                 }
             }
-
-            res.status(200).send(data);
-        })
-        .catch((err) => {
-            console.error(err);
-            res.status(500).send("Server error. Please try later");
         });
+
+        const badgeWithProductIds = badges.map(badge => {
+            return {
+                ...badge,
+                productIds: productBadgeRelations
+                  .filter(pb => pb.badgeId === badge.id)
+                  .map(pb => pb.productId),
+            }
+        });
+
+        // @ts-ignore
+        const _badges = badgeWithProductIds.reduce((acc, item) => {
+            // @ts-ignore
+            if (item.productIds.includes(data?.id)) {
+                return [...acc, item.name];
+            } else {
+                return acc;
+            }
+        }, []);
+
+        const providers = await prisma.providerProfile.findMany({
+            where: {
+                deletedAt: null
+            },
+        });
+
+        // @ts-ignore
+        data.providerName = providers.find(p => p.id === data.providerId)?.name;
+
+        res.status(200).send({ ...data, badges: _badges });
     } catch (error) {
         console.error(error);
         res.status(500).send("Server error. Please try later");

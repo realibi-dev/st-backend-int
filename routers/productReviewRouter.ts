@@ -13,7 +13,7 @@ interface IProductReview {
 }
 
 const getUpdatedRatingAndCount = async (productId: number, newRating: number) => {
-    const productReviews = await prisma.productReview.findMany({ where: { productId, deletedAt: null } });
+    const productReviews = await prisma.productReview.findMany({ where: { productId, deletedAt: null, approved: true } });
     const totalRating = productReviews.reduce((acc, review) => acc + review.rating, 0) + newRating;
     const averageRating = totalRating / (productReviews.length + 1);
     return { rating: averageRating, count: productReviews.length + 1 };
@@ -47,7 +47,7 @@ router.get("/", async (req: Request, res: Response) => {
 router.get("/product/:productId", async (req: Request, res: Response) => {
     try {
         const { productId } = req.params;
-        const productReviews = await prisma.productReview.findMany({ where: { productId: parseInt(productId), deletedAt: null } });
+        const productReviews = await prisma.productReview.findMany({ where: { productId: parseInt(productId), deletedAt: null, approved: true } });
         res.json(productReviews);
     } catch (error) {
         res.status(500).json(error);

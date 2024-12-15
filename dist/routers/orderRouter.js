@@ -17,9 +17,96 @@ const db_1 = __importDefault(require("./../prisma/db"));
 const helpers_1 = __importDefault(require("../helpers"));
 const middlewares_1 = __importDefault(require("../middlewares"));
 const router = (0, express_1.Router)();
+router.post("/repeat", middlewares_1.default.checkAuthorization, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    try {
+        const { orderId } = req.body;
+        const orderItems = yield db_1.default.orderItem.findMany({
+            where: {
+                orderId: +orderId,
+            }
+        });
+        let products = yield db_1.default.product.findMany({
+            where: {
+                id: {
+                    in: orderItems.map(item => item.productId),
+                },
+            }
+        });
+        const unavailableProducts = products.filter(product => product.deletedAt !== null);
+        const currentUserId = (_a = helpers_1.default.getCurrentUserInfo(req)) === null || _a === void 0 ? void 0 : _a.id;
+        const newPriceProducts = yield db_1.default.productNewPrice.findMany({
+            where: {
+                deletedAt: null,
+                userId: +currentUserId
+            }
+        });
+        if (newPriceProducts.length) {
+            // @ts-ignore
+            products = products.map(product => {
+                var _a;
+                return Object.assign(Object.assign({}, product), { price: (_a = newPriceProducts.find(item => item.productId === product.id)) === null || _a === void 0 ? void 0 : _a.price });
+            });
+        }
+        let userCart = yield db_1.default.cart.findFirst({
+            where: {
+                userId: +currentUserId,
+                deletedAt: null,
+            }
+        });
+        if (userCart) {
+            yield db_1.default.cart.delete({
+                where: {
+                    id: userCart.id
+                }
+            });
+        }
+        userCart = yield db_1.default.cart.create({
+            data: {
+                id: Math.round(Math.random() * 1000000),
+                userId: +currentUserId,
+            }
+        });
+        const newCartItems = products
+            .filter(product => product.deletedAt === null)
+            .map(product => {
+            return {
+                id: Math.round(Math.random() * 1000000),
+                productId: product.id,
+                quantity: 1,
+                // @ts-ignore
+                price: product.price || orderItems.find(item => item.productId === product.id).price,
+                cartId: userCart.id,
+            };
+        });
+        yield db_1.default.cartItem.createMany({
+            data: newCartItems,
+        });
+        const priceRaisedProducts = products
+            .filter(product => {
+            const orderItemProduct = orderItems.find(item => item.productId === product.id);
+            // @ts-ignore
+            return product.price > orderItemProduct.price;
+        })
+            .map(product => {
+            const orderItemProduct = orderItems.find(item => item.productId === product.id);
+            return Object.assign(Object.assign({}, product), { 
+                // @ts-ignore
+                oldPrice: orderItemProduct.price });
+        });
+        res.status(200).send({
+            success: true,
+            unavailableProducts,
+            priceRaisedProducts,
+        });
+    }
+    catch (e) {
+        console.log(e);
+        res.status(500).send({ success: false, error: e });
+    }
+}));
 router.post("/financial-report", middlewares_1.default.checkAuthorization, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const currentUser = helpers_1.default.getCurrentUserInfo(req);
         const financialReportSettings = req.body;
         const orders = yield db_1.default.order.findMany({
             where: {
@@ -65,6 +152,14 @@ router.get("/userOrderHistory", middlewares_1.default.checkAuthorization, (req, 
                 deletedAt: null,
             }
         });
+        const productReviews = yield db_1.default.productReview.findMany({
+            where: {
+                deletedAt: null,
+                orderId: {
+                    in: userOrders.map(o => o.id),
+                },
+            }
+        });
         const orderItems = yield db_1.default.orderItem.findMany({
             where: {
                 orderId: {
@@ -94,9 +189,10 @@ router.get("/userOrderHistory", middlewares_1.default.checkAuthorization, (req, 
         });
         userOrdersResult = userOrdersResult.map(item => {
             var _a, _b;
-            return Object.assign(Object.assign({}, item), { branchName: (_a = branches.find(branch => branch.id === item.branchId)) === null || _a === void 0 ? void 0 : _a.name, branchAddress: (_b = branches.find(branch => branch.id === item.branchId)) === null || _b === void 0 ? void 0 : _b.address, products: item.products.map(product => {
+            const currentOrderReviews = productReviews.filter(review => review.orderId === item.id);
+            return Object.assign(Object.assign({}, item), { reviewed: item.products.every(p => currentOrderReviews.map(r => r.productId).includes(p.productId)), branchName: (_a = branches.find(branch => branch.id === item.branchId)) === null || _a === void 0 ? void 0 : _a.name, branchAddress: (_b = branches.find(branch => branch.id === item.branchId)) === null || _b === void 0 ? void 0 : _b.address, products: item.products.map(product => {
                     var _a;
-                    return Object.assign(Object.assign({}, product), { cartItemId: product.id, productName: (_a = products.find(pr => pr.id === product.productId)) === null || _a === void 0 ? void 0 : _a.name });
+                    return Object.assign(Object.assign({}, product), { reviewed: currentOrderReviews.map(review => review.productId).includes(product.productId), cartItemId: product.id, productName: (_a = products.find(pr => pr.id === product.productId)) === null || _a === void 0 ? void 0 : _a.name });
                 }) });
         });
         res.status(200).send(userOrdersResult);
@@ -170,12 +266,13 @@ router.post("/", middlewares_1.default.checkAuthorization, (req, res) => __await
         orderInfo.userId = currentUser.id;
         const orderPayload = Object.assign({}, orderInfo);
         db_1.default.order.create({
-            data: orderPayload,
+            data: Object.assign({ id: Math.floor(Math.random() * 1000000000) }, orderPayload),
         })
             .then((order) => __awaiter(void 0, void 0, void 0, function* () {
             cartItems.map((item) => __awaiter(void 0, void 0, void 0, function* () {
                 yield db_1.default.orderItem.create({
                     data: {
+                        id: Math.floor(Math.random() * 1000000000),
                         productId: item.productId,
                         orderId: order.id,
                         price: item.price || 0,
@@ -200,6 +297,21 @@ router.post("/", middlewares_1.default.checkAuthorization, (req, res) => __await
                     deletedAt: new Date()
                 }
             });
+            cartItems.forEach((item) => __awaiter(void 0, void 0, void 0, function* () {
+                const product = yield db_1.default.product.findFirst({
+                    where: {
+                        id: item.productId,
+                    }
+                });
+                yield db_1.default.product.update({
+                    where: {
+                        id: product === null || product === void 0 ? void 0 : product.id,
+                    },
+                    data: {
+                        salesCount: ((product === null || product === void 0 ? void 0 : product.salesCount) || 0) + item.quantity,
+                    }
+                });
+            }));
             res.status(201).send("Order created");
         }))
             .catch((err) => {

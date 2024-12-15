@@ -41,6 +41,12 @@ router.get("/getCart", async (req: Request, res: Response) => {
                 deletedAt: null
             }
         });
+
+        const currentUser = await prisma.user.findFirst({
+            where: {
+                id: currentUserId,
+            }
+        });
     
         if (cart) {
             const cartItems = await prisma.cartItem.findMany({
@@ -60,6 +66,7 @@ router.get("/getCart", async (req: Request, res: Response) => {
     
             res.status(200).send({
                 success: true,
+                orderAllowed: (currentUser?.isActive && await helpers.orderDeadlineCheck()) || false,
                 cartId: cart.id,
                 items: cartItems.map(item => {
                     const product = products.find(p => p.id === item.productId);
@@ -72,9 +79,10 @@ router.get("/getCart", async (req: Request, res: Response) => {
                 })
             });
         } else {
-            res.status(400).send({
+            res.status(200).send({
                 success: false,
-                message: "User has no items in cart"
+                message: "User has no items in cart",
+                orderAllowed: (currentUser?.isActive && await helpers.orderDeadlineCheck()) || false,
             });
         }
     } catch(error) {

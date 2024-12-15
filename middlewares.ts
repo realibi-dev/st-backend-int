@@ -5,6 +5,21 @@ dotenv.config();
 
 const secretKey = process.env.SECRET_KEY || "";
 
+const redirectToLogin = (req: Request, res: Response) => {
+    const targetUrl = `${process.env.CLIENT_DOMAIN}/profile/auth`;
+
+    res.send(`
+        <html>
+            <head><title>Redirecting...</title></head>
+            <body>
+                <script>
+                    window.location.href = "${targetUrl}";
+                </script>
+            </body>
+        </html>
+    `);
+}
+
 function checkAuthorization(req: Request, res: Response, next: NextFunction) {
     const bearerToken = req.headers.authorization;  //    "Bearer asdlkjhfbak348756edjhfag3746"
 
@@ -13,14 +28,15 @@ function checkAuthorization(req: Request, res: Response, next: NextFunction) {
 
         jwt.verify(token, secretKey, function(err, decoded) {
             if (err) {
-                res.status(400).send(err);
+                redirectToLogin(req, res);
                 return;
             }
 
             next();
         });
     } else {
-        res.status(401).send("User is not authorized!");
+        console.log("redirecting to authentication");
+        res.redirect(301, "/profile/auth");
     }
 }
 
@@ -32,7 +48,7 @@ function checkAdmin(req: Request, res: Response, next: NextFunction) {
 
         jwt.verify(token, secretKey, function(err, decoded: any) {
             if (err) {
-                res.status(400).send(err);
+                redirectToLogin(req, res);
                 return;
             }
 
@@ -43,7 +59,7 @@ function checkAdmin(req: Request, res: Response, next: NextFunction) {
             }
         });
     } else {
-        res.status(401).send("User is not authorized!");
+        redirectToLogin(req, res);
     }
 }
 
@@ -55,7 +71,7 @@ function checkProvider(req: Request, res: Response, next: NextFunction) {
 
         jwt.verify(token, secretKey, function(err, decoded: any) {
             if (err) {
-                res.status(400).send(err);
+                redirectToLogin(req, res);
                 return;
             }
 
@@ -66,7 +82,7 @@ function checkProvider(req: Request, res: Response, next: NextFunction) {
             }
         });
     } else {
-        res.status(401).send("User is not authorized!");
+        redirectToLogin(req, res);
     }
 }
 

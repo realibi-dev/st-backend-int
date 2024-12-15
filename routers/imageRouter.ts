@@ -5,141 +5,151 @@ import fs from "fs";
 import multer from "multer";
 const router: Router = Router();
 
-const handleError = (err: any, res: Response) => {
-    console.log(err);
+const productImagesDir = "./uploads/product_images/";
 
-    res
-    .status(500)
-    .contentType("text/plain")
-    .send("Oops! Something went wrong!");
-};  
+router.post("/uploadProductImage", async (req: Request, res: Response) => {
+  try {
+    const { image, imageName, productId } = req.body;
 
-const upload = multer({
-    dest: "./images"
-});
-
-router.post("/uploadProductImage", upload.single("image"), (req: Request, res: Response) => {
-    const tempPath = req.file?.path;
-    const random = Math.round(Math.random() * 1000000000).toString();
-    const targetPath = path.join(`./uploads/product_images/${random}.png`);
-
-    const productId = req.body.productId;
-
-    if (path.extname(req.file?.originalname || "file.png").toLowerCase() === ".png") {
-      fs.rename(tempPath || "", targetPath, async err => {
-        if (err) return handleError(err, res);
-
-        await prisma.product.update({
-            where: {
-                id: +productId
-            },
-            data: {
-                image: `/file/product_images/${random}.png`,
-            }
-        })
-        .then(() => {
-            res
-            .status(200)
-            .contentType("text/plain")
-            .end(`/file/product_images/${random}.png`);
-        })
-        .catch(err => {
-            handleError(err, res);
-        })
-      });
-    } else {
-      fs.unlink(tempPath || "", err => {
-        if (err) return handleError(err, res);
-
-        res
-          .status(403)
-          .contentType("text/plain")
-          .end("Only .png files are allowed!");
-      });
+    if (!image || !imageName || !productId) {
+      return res.status(400).send("Invalid payload. Required fields: image, imageName, productId.");
     }
-});
 
-router.post("/uploadUserImage", upload.single("image"), (req: Request, res: Response) => {
-    const tempPath = req.file?.path;
-    const random = Math.round(Math.random() * 1000000000).toString();
-    const targetPath = path.join(`./uploads/user_images/${random}.png`);
-
-    const userId = req.body.userId;
-
-    if (path.extname(req.file?.originalname || "file.png").toLowerCase() === ".png") {
-      fs.rename(tempPath || "", targetPath, async err => {
-        if (err) return handleError(err, res);
-
-        await prisma.user.update({
-            where: {
-                id: +userId
-            },
-            data: {
-                image: `/file/user_images/${random}.png`,
-            }
-        })
-        .then(() => {
-            res
-            .status(200)
-            .contentType("text/plain")
-            .end(`/file/user_images/${random}.png`);
-        })
-        .catch(err => {
-            handleError(err, res);
-        })
-      });
-    } else {
-      fs.unlink(tempPath || "", err => {
-        if (err) return handleError(err, res);
-
-        res
-          .status(403)
-          .contentType("text/plain")
-          .end("Only .png files are allowed!");
-      });
+    // Проверка на тип productId
+    if (isNaN(+productId)) {
+      return res.status(400).send("Invalid productId.");
     }
+
+    // Убедимся, что папка для сохранения существует
+    if (!fs.existsSync(productImagesDir)) {
+      fs.mkdirSync(productImagesDir, { recursive: true });
+    }
+
+    // Проверка на формат Base64
+    const base64Pattern = /^data:image\/png;base64,/;
+    if (!base64Pattern.test(image)) {
+      return res.status(400).send("Invalid image format. Only Base64-encoded PNG images are allowed.");
+    }
+
+    // Генерация имени файла
+    const random = Math.round(Math.random() * 1000000000).toString();
+    const fileName = `${random}_${imageName.replaceAll(' ', '')}`;
+    const filePath = path.join(productImagesDir, fileName);
+
+    // Удаление префикса "data:image/png;base64,"
+    const base64Data = image.replace(base64Pattern, "");
+
+    // Сохранение файла
+    fs.writeFileSync(filePath, base64Data, "base64");
+
+    // Сохранение пути в базу данных
+    await prisma.product.update({
+      where: { id: +productId },
+      data: { image: `/file/product_images/${fileName}` },
+    });
+
+    res.status(200).send(`/file/product_images/${fileName}`);
+  } catch (err) {
+    console.error("Error uploading product image:", err);
+    res.status(500).send("An error occurred while uploading the product image.");
+  }
 });
 
-router.post("/uploadSubCategoryImage", upload.single("image"), (req: Request, res: Response) => {
-  const tempPath = req.file?.path;
-  const random = Math.round(Math.random() * 1000000000).toString();
-  const targetPath = path.join(`./uploads/subcategories_images/${random}.png`);
+const userImagesDir = "./uploads/user_images/";
 
-  const subCategoryId = req.body.subCategoryId;
+router.post("/uploadUserImage", async (req: Request, res: Response) => {
+  try {
+    const { image, imageName, userId } = req.body;
 
-  console.log("subCategoryId", subCategoryId);
+    if (!image || !imageName || !userId) {
+      return res.status(400).send("Invalid payload. Required fields: image, imageName, userId.");
+    }
 
-  if (path.extname(req.file?.originalname || "file.png").toLowerCase() === ".png") {
-    fs.rename(tempPath || "", targetPath, async err => {
-      if (err) return handleError(err, res);
+    // Проверка на тип userId
+    if (isNaN(+userId)) {
+      return res.status(400).send("Invalid userId.");
+    }
 
-      await prisma.subCategory.update({
-          where: {
-              id: +subCategoryId
-          },
-          data: {
-              image: `/file/subcategories_images/${random}.png`,
-          }
-      })
-      .then(() => {
-          res
-          .status(200)
-          .contentType("text/plain")
-          .end(`/file/subcategories_images/${random}.png`);
-      })
-      .catch(err => {
-          handleError(err, res);
-      })
+    // Убедимся, что папка для сохранения существует
+    if (!fs.existsSync(userImagesDir)) {
+      fs.mkdirSync(userImagesDir, { recursive: true });
+    }
+
+    // Проверка на формат Base64
+    const base64Pattern = /^data:image\/png;base64,/;
+    if (!base64Pattern.test(image)) {
+      return res.status(400).send("Invalid image format. Only Base64-encoded PNG images are allowed.");
+    }
+
+    // Генерация имени файла
+    const random = Math.round(Math.random() * 1000000000).toString();
+    const fileName = `${random}_${imageName}`;
+    const filePath = path.join(userImagesDir, fileName);
+
+    // Удаление префикса "data:image/png;base64,"
+    const base64Data = image.replace(base64Pattern, "");
+
+    // Сохранение файла
+    fs.writeFileSync(filePath, base64Data, "base64");
+
+    // Сохранение пути в базу данных
+    await prisma.user.update({
+      where: { id: +userId },
+      data: { image: `/file/user_images/${fileName}` },
     });
-  } else {
-    fs.unlink(tempPath || "", err => {
-      if (err) return handleError(err, res);
 
-      res
-        .status(403)
-        .contentType("text/plain")
-        .end("Only .png files are allowed!");
+    res.status(200).send(`/file/user_images/${fileName}`);
+  } catch (err) {
+    console.error("Error uploading user image:", err);
+    res.status(500).send("An error occurred while uploading the user image.");
+  }
+});
+
+router.post("/uploadSubCategoryImage", async (req: Request, res: Response) => {
+  try {
+    const { image, imageName, subCategoryId } = req.body;
+
+    if (!image || !imageName || !subCategoryId) {
+      return res.status(400).send("Invalid payload. Required fields: image, imageName, subCategoryId.");
+    }
+
+    // Проверка на тип подкатегории
+    if (isNaN(+subCategoryId)) {
+      return res.status(400).send("Invalid subCategoryId.");
+    }
+
+    // Убедимся, что папка для сохранения существует
+    if (!fs.existsSync("./uploads/subcategories_images/")) {
+      fs.mkdirSync("./uploads/subcategories_images/", { recursive: true });
+    }
+
+    // Проверка на формат Base64
+    const base64Pattern = /^data:image\/png;base64,/;
+    if (!base64Pattern.test(image)) {
+      return res.status(400).send("Invalid image format. Only Base64-encoded PNG images are allowed.");
+    }
+
+    // Генерация имени файла
+    const random = Math.round(Math.random() * 1000000000).toString();
+    const fileName = `${random}_${imageName}`;
+    const filePath = path.join("./uploads/subcategories_images/", fileName);
+
+    // Удаление префикса "data:image/png;base64,"
+    const base64Data = image.replace(base64Pattern, "");
+
+    // Сохранение файла
+    fs.writeFileSync(filePath, base64Data, "base64");
+
+    // Сохранение пути в базу данных
+    await prisma.subCategory.update({
+      where: { id: +subCategoryId },
+      data: { image: `/file/subcategories_images/${fileName}` },
     });
+
+    res.status(200).send(`/file/subcategories_images/${fileName}`);
+  } catch (err) {
+    console.error("Error uploading image:", err);
+    res.status(500).send("An error occurred while uploading the image.");
   }
 });
 

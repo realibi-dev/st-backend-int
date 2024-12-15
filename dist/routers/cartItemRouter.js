@@ -78,6 +78,7 @@ router.post("/", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
             if (!cart) {
                 cart = yield db_1.default.cart.create({
                     data: {
+                        id: Math.floor(Math.random() * 1000000000),
                         userId: currentUser.id,
                     }
                 });
@@ -91,7 +92,7 @@ router.post("/", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                 .then((product) => {
                 if (product) {
                     db_1.default.cartItem.create({
-                        data: Object.assign(Object.assign({}, cartItemInfo), { cartId: cart.id, price: cartItemInfo.price || (product === null || product === void 0 ? void 0 : product.price) }),
+                        data: Object.assign(Object.assign({ id: Math.floor(Math.random() * 1000000000) }, cartItemInfo), { cartId: cart.id, price: cartItemInfo.price || (product === null || product === void 0 ? void 0 : product.price) }),
                     })
                         .then(() => {
                         res.status(201).send("Cart item created");

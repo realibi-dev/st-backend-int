@@ -16,136 +16,124 @@ const express_1 = require("express");
 const db_1 = __importDefault(require("../prisma/db"));
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
-const multer_1 = __importDefault(require("multer"));
 const router = (0, express_1.Router)();
-const handleError = (err, res) => {
-    console.log(err);
-    res
-        .status(500)
-        .contentType("text/plain")
-        .send("Oops! Something went wrong!");
-};
-const upload = (0, multer_1.default)({
-    dest: "./images"
-});
-router.post("/uploadProductImage", upload.single("image"), (req, res) => {
-    var _a, _b;
-    const tempPath = (_a = req.file) === null || _a === void 0 ? void 0 : _a.path;
-    const random = Math.round(Math.random() * 1000000000).toString();
-    const targetPath = path_1.default.join(`./uploads/product_images/${random}.png`);
-    const productId = req.body.productId;
-    if (path_1.default.extname(((_b = req.file) === null || _b === void 0 ? void 0 : _b.originalname) || "file.png").toLowerCase() === ".png") {
-        fs_1.default.rename(tempPath || "", targetPath, (err) => __awaiter(void 0, void 0, void 0, function* () {
-            if (err)
-                return handleError(err, res);
-            yield db_1.default.product.update({
-                where: {
-                    id: +productId
-                },
-                data: {
-                    image: `http://localhost:8080/file/product_images/${random}.png`,
-                }
-            })
-                .then(() => {
-                res
-                    .status(200)
-                    .contentType("text/plain")
-                    .end("File uploaded!");
-            })
-                .catch(err => {
-                handleError(err, res);
-            });
-        }));
-    }
-    else {
-        fs_1.default.unlink(tempPath || "", err => {
-            if (err)
-                return handleError(err, res);
-            res
-                .status(403)
-                .contentType("text/plain")
-                .end("Only .png files are allowed!");
+const productImagesDir = "./uploads/product_images/";
+router.post("/uploadProductImage", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { image, imageName, productId } = req.body;
+        if (!image || !imageName || !productId) {
+            return res.status(400).send("Invalid payload. Required fields: image, imageName, productId.");
+        }
+        // Проверка на тип productId
+        if (isNaN(+productId)) {
+            return res.status(400).send("Invalid productId.");
+        }
+        // Убедимся, что папка для сохранения существует
+        if (!fs_1.default.existsSync(productImagesDir)) {
+            fs_1.default.mkdirSync(productImagesDir, { recursive: true });
+        }
+        // Проверка на формат Base64
+        const base64Pattern = /^data:image\/png;base64,/;
+        if (!base64Pattern.test(image)) {
+            return res.status(400).send("Invalid image format. Only Base64-encoded PNG images are allowed.");
+        }
+        // Генерация имени файла
+        const random = Math.round(Math.random() * 1000000000).toString();
+        const fileName = `${random}_${imageName.replaceAll(' ', '')}`;
+        const filePath = path_1.default.join(productImagesDir, fileName);
+        // Удаление префикса "data:image/png;base64,"
+        const base64Data = image.replace(base64Pattern, "");
+        // Сохранение файла
+        fs_1.default.writeFileSync(filePath, base64Data, "base64");
+        // Сохранение пути в базу данных
+        yield db_1.default.product.update({
+            where: { id: +productId },
+            data: { image: `/file/product_images/${fileName}` },
         });
+        res.status(200).send(`/file/product_images/${fileName}`);
     }
-});
-router.post("/uploadUserImage", upload.single("image"), (req, res) => {
-    var _a, _b;
-    const tempPath = (_a = req.file) === null || _a === void 0 ? void 0 : _a.path;
-    const random = Math.round(Math.random() * 1000000000).toString();
-    const targetPath = path_1.default.join(`./uploads/user_images/${random}.png`);
-    const userId = req.body.userId;
-    if (path_1.default.extname(((_b = req.file) === null || _b === void 0 ? void 0 : _b.originalname) || "file.png").toLowerCase() === ".png") {
-        fs_1.default.rename(tempPath || "", targetPath, (err) => __awaiter(void 0, void 0, void 0, function* () {
-            if (err)
-                return handleError(err, res);
-            yield db_1.default.user.update({
-                where: {
-                    id: +userId
-                },
-                data: {
-                    image: `http://localhost:8080/file/user_images/${random}.png`,
-                }
-            })
-                .then(() => {
-                res
-                    .status(200)
-                    .contentType("text/plain")
-                    .end("File uploaded!");
-            })
-                .catch(err => {
-                handleError(err, res);
-            });
-        }));
+    catch (err) {
+        console.error("Error uploading product image:", err);
+        res.status(500).send("An error occurred while uploading the product image.");
     }
-    else {
-        fs_1.default.unlink(tempPath || "", err => {
-            if (err)
-                return handleError(err, res);
-            res
-                .status(403)
-                .contentType("text/plain")
-                .end("Only .png files are allowed!");
+}));
+const userImagesDir = "./uploads/user_images/";
+router.post("/uploadUserImage", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { image, imageName, userId } = req.body;
+        if (!image || !imageName || !userId) {
+            return res.status(400).send("Invalid payload. Required fields: image, imageName, userId.");
+        }
+        // Проверка на тип userId
+        if (isNaN(+userId)) {
+            return res.status(400).send("Invalid userId.");
+        }
+        // Убедимся, что папка для сохранения существует
+        if (!fs_1.default.existsSync(userImagesDir)) {
+            fs_1.default.mkdirSync(userImagesDir, { recursive: true });
+        }
+        // Проверка на формат Base64
+        const base64Pattern = /^data:image\/png;base64,/;
+        if (!base64Pattern.test(image)) {
+            return res.status(400).send("Invalid image format. Only Base64-encoded PNG images are allowed.");
+        }
+        // Генерация имени файла
+        const random = Math.round(Math.random() * 1000000000).toString();
+        const fileName = `${random}_${imageName}`;
+        const filePath = path_1.default.join(userImagesDir, fileName);
+        // Удаление префикса "data:image/png;base64,"
+        const base64Data = image.replace(base64Pattern, "");
+        // Сохранение файла
+        fs_1.default.writeFileSync(filePath, base64Data, "base64");
+        // Сохранение пути в базу данных
+        yield db_1.default.user.update({
+            where: { id: +userId },
+            data: { image: `/file/user_images/${fileName}` },
         });
+        res.status(200).send(`/file/user_images/${fileName}`);
     }
-});
-router.post("/uploadSubCategoryImage", upload.single("image"), (req, res) => {
-    var _a, _b;
-    const tempPath = (_a = req.file) === null || _a === void 0 ? void 0 : _a.path;
-    const random = Math.round(Math.random() * 1000000000).toString();
-    const targetPath = path_1.default.join(`./uploads/subcategories_images/${random}.png`);
-    const subCategoryId = req.body.subCategoryId;
-    if (path_1.default.extname(((_b = req.file) === null || _b === void 0 ? void 0 : _b.originalname) || "file.png").toLowerCase() === ".png") {
-        fs_1.default.rename(tempPath || "", targetPath, (err) => __awaiter(void 0, void 0, void 0, function* () {
-            if (err)
-                return handleError(err, res);
-            yield db_1.default.subCategory.update({
-                where: {
-                    id: +subCategoryId
-                },
-                data: {
-                    image: `http://localhost:8080/file/subcategories_images/${random}.png`,
-                }
-            })
-                .then(() => {
-                res
-                    .status(200)
-                    .contentType("text/plain")
-                    .end("File uploaded!");
-            })
-                .catch(err => {
-                handleError(err, res);
-            });
-        }));
+    catch (err) {
+        console.error("Error uploading user image:", err);
+        res.status(500).send("An error occurred while uploading the user image.");
     }
-    else {
-        fs_1.default.unlink(tempPath || "", err => {
-            if (err)
-                return handleError(err, res);
-            res
-                .status(403)
-                .contentType("text/plain")
-                .end("Only .png files are allowed!");
+}));
+router.post("/uploadSubCategoryImage", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { image, imageName, subCategoryId } = req.body;
+        if (!image || !imageName || !subCategoryId) {
+            return res.status(400).send("Invalid payload. Required fields: image, imageName, subCategoryId.");
+        }
+        // Проверка на тип подкатегории
+        if (isNaN(+subCategoryId)) {
+            return res.status(400).send("Invalid subCategoryId.");
+        }
+        // Убедимся, что папка для сохранения существует
+        if (!fs_1.default.existsSync("./uploads/subcategories_images/")) {
+            fs_1.default.mkdirSync("./uploads/subcategories_images/", { recursive: true });
+        }
+        // Проверка на формат Base64
+        const base64Pattern = /^data:image\/png;base64,/;
+        if (!base64Pattern.test(image)) {
+            return res.status(400).send("Invalid image format. Only Base64-encoded PNG images are allowed.");
+        }
+        // Генерация имени файла
+        const random = Math.round(Math.random() * 1000000000).toString();
+        const fileName = `${random}_${imageName}`;
+        const filePath = path_1.default.join("./uploads/subcategories_images/", fileName);
+        // Удаление префикса "data:image/png;base64,"
+        const base64Data = image.replace(base64Pattern, "");
+        // Сохранение файла
+        fs_1.default.writeFileSync(filePath, base64Data, "base64");
+        // Сохранение пути в базу данных
+        yield db_1.default.subCategory.update({
+            where: { id: +subCategoryId },
+            data: { image: `/file/subcategories_images/${fileName}` },
         });
+        res.status(200).send(`/file/subcategories_images/${fileName}`);
     }
-});
+    catch (err) {
+        console.error("Error uploading image:", err);
+        res.status(500).send("An error occurred while uploading the image.");
+    }
+}));
 exports.default = router;

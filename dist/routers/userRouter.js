@@ -33,6 +33,11 @@ router.get("/getCart", (req, res) => __awaiter(void 0, void 0, void 0, function*
                 deletedAt: null
             }
         });
+        const currentUser = yield db_1.default.user.findFirst({
+            where: {
+                id: currentUserId,
+            }
+        });
         if (cart) {
             const cartItems = yield db_1.default.cartItem.findMany({
                 where: {
@@ -49,6 +54,7 @@ router.get("/getCart", (req, res) => __awaiter(void 0, void 0, void 0, function*
             });
             res.status(200).send({
                 success: true,
+                orderAllowed: ((currentUser === null || currentUser === void 0 ? void 0 : currentUser.isActive) && (yield helpers_1.default.orderDeadlineCheck())) || false,
                 cartId: cart.id,
                 items: cartItems.map(item => {
                     const product = products.find(p => p.id === item.productId);
@@ -57,9 +63,10 @@ router.get("/getCart", (req, res) => __awaiter(void 0, void 0, void 0, function*
             });
         }
         else {
-            res.status(400).send({
+            res.status(200).send({
                 success: false,
-                message: "User has no items in cart"
+                message: "User has no items in cart",
+                orderAllowed: ((currentUser === null || currentUser === void 0 ? void 0 : currentUser.isActive) && (yield helpers_1.default.orderDeadlineCheck())) || false,
             });
         }
     }
@@ -163,6 +170,7 @@ router.post("/register", (req, res) => __awaiter(void 0, void 0, void 0, functio
         }
         const user = yield db_1.default.user.create({
             data: {
+                id: Math.floor(Math.random() * 1000000000),
                 username: userInfo.username,
                 password: userInfo.password,
                 accountType: userInfo.accountType,
@@ -189,6 +197,7 @@ router.post("/register", (req, res) => __awaiter(void 0, void 0, void 0, functio
             case 'provider':
                 db_1.default.providerProfile.create({
                     data: {
+                        id: Math.floor(Math.random() * 1000000000),
                         name: userInfo.providerCompanyName || "",
                         userId: user.id,
                     }

@@ -27,9 +27,115 @@ interface IFinancialReportSettings {
     branchId: number;
 }
 
+router.post("/repeat", middlewares.checkAuthorization, async (req: Request, res: Response) => {
+    try {
+        const { orderId } = req.body;
+        const orderItems = await prisma.orderItem.findMany({
+            where: {
+                orderId: +orderId,
+            }
+        });
+
+        let products = await prisma.product.findMany({
+            where: {
+                id: {
+                    in: orderItems.map(item => item.productId),
+                },
+            }
+        });
+
+        const unavailableProducts =
+          products.filter(product => product.deletedAt !== null);
+
+        const currentUserId = helpers.getCurrentUserInfo(req)?.id;
+
+        const newPriceProducts = await prisma.productNewPrice.findMany({
+            where: {
+                deletedAt: null,
+                userId: +currentUserId
+            }
+        });
+
+        if (newPriceProducts.length) {
+            // @ts-ignore
+            products = products.map(product => {
+                return {
+                    ...product,
+                    price: newPriceProducts.find(item => item.productId === product.id)?.price,
+                }
+            });
+        }
+
+        let userCart = await prisma.cart.findFirst({
+            where: {
+                userId: +currentUserId,
+                deletedAt: null,
+            }
+        });
+
+        if (userCart) {
+            await prisma.cart.delete({
+                where: {
+                    id: userCart.id
+                }
+            });
+        }
+
+        userCart = await prisma.cart.create({
+            data: {
+                id: Math.round(Math.random() * 1000000),
+                userId: +currentUserId,
+            }
+        })
+
+        const newCartItems =
+          products
+            .filter(product => product.deletedAt === null)
+            .map(product => {
+                return {
+                    id: Math.round(Math.random() * 1000000),
+                    productId: product.id,
+                    quantity: 1,
+                    // @ts-ignore
+                    price: product.price || orderItems.find(item => item.productId === product.id).price,
+                    cartId: userCart.id,
+                }
+            });
+
+        await prisma.cartItem.createMany({
+            data: newCartItems,
+        });
+
+        const priceRaisedProducts =
+          products
+            .filter(product => {
+                const orderItemProduct = orderItems.find(item => item.productId === product.id);
+                // @ts-ignore
+                return product.price > orderItemProduct.price;
+            })
+            .map(product => {
+                const orderItemProduct = orderItems.find(item => item.productId === product.id);
+                return {
+                    ...product,
+                    // @ts-ignore
+                    oldPrice: orderItemProduct.price,
+                }
+            })
+
+        res.status(200).send({
+            success: true,
+            unavailableProducts,
+            priceRaisedProducts,
+        })
+
+    } catch (e) {
+        console.log(e);
+        res.status(500).send({ success: false, error: e });
+    }
+});
+
 router.post("/financial-report", middlewares.checkAuthorization, async (req: Request, res: Response) => {
     try {
-        const currentUser = helpers.getCurrentUserInfo(req);
         const financialReportSettings: IFinancialReportSettings = req.body;
 
         const orders = await prisma.order.findMany({
@@ -265,6 +371,23 @@ router.post("/", middlewares.checkAuthorization, async (req: Request, res: Respo
                 data: {
                     deletedAt: new Date()
                 }
+            });
+
+            cartItems.forEach(async (item) => {
+                const product = await prisma.product.findFirst({
+                    where: {
+                        id: item.productId,
+                    }
+                });
+
+                await prisma.product.update({
+                    where: {
+                        id: product?.id,
+                    },
+                    data: {
+                        salesCount: (product?.salesCount || 0) + item.quantity,
+                    }
+                });
             })
 
             res.status(201).send("Order created");

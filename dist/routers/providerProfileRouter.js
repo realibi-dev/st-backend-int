@@ -115,7 +115,7 @@ router.post("/", (req, res) => {
     try {
         const providerInfo = req.body;
         db_1.default.providerProfile.create({
-            data: providerInfo,
+            data: Object.assign({ id: Math.floor(Math.random() * 1000000000) }, providerInfo),
         })
             .then(() => {
             res.status(201).send("Provider profile created");

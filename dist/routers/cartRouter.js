@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const db_1 = __importDefault(require("../prisma/db"));
 const helpers_1 = __importDefault(require("../helpers"));
+const middlewares_1 = __importDefault(require("../middlewares"));
 const router = (0, express_1.Router)();
 router.get("/", (req, res) => {
     try {
@@ -68,7 +69,7 @@ router.post("/", (req, res) => {
     try {
         const cartInfo = req.body;
         db_1.default.cart.create({
-            data: cartInfo,
+            data: Object.assign({ id: Math.floor(Math.random() * 1000000000) }, cartInfo),
         })
             .then(() => {
             res.status(201).send("Cart created");
@@ -83,7 +84,7 @@ router.post("/", (req, res) => {
         res.status(500).send("Server error. Please try later");
     }
 });
-router.post("/addItem", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+router.post("/addItem", middlewares_1.default.checkAuthorization, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     try {
         const newCartItem = req.body;
@@ -98,6 +99,7 @@ router.post("/addItem", (req, res) => __awaiter(void 0, void 0, void 0, function
             if (!existingCart) {
                 existingCart = yield db_1.default.cart.create({
                     data: {
+                        id: Math.floor(Math.random() * 1000000000),
                         userId: currentUserId,
                     }
                 });
@@ -129,11 +131,11 @@ router.post("/addItem", (req, res) => __awaiter(void 0, void 0, void 0, function
                 });
                 const newItem = yield db_1.default.cartItem.create({
                     data: {
+                        id: Math.floor(Math.random() * 1000000000),
                         productId: newCartItem.productId,
                         cartId: existingCart.id,
                         price: newCartItem.price || (product === null || product === void 0 ? void 0 : product.price) || 0,
                         quantity: newCartItem.quantity,
-                        id: Math.round(Math.random() * 1000000000),
                     }
                 });
                 cartItemId = newItem.id;

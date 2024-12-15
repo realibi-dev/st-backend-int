@@ -69,7 +69,7 @@ router.post("/", (req, res) => {
     try {
         const categoryInfo = req.body;
         db_1.default.category.create({
-            data: categoryInfo,
+            data: Object.assign({ id: Math.floor(Math.random() * 1000000000) }, categoryInfo),
         })
             .then(() => {
             res.status(201).send("Category created");
@@ -88,7 +88,7 @@ router.post("/subCategories", (req, res) => {
     try {
         const subCategoryInfo = req.body;
         db_1.default.subCategory.create({
-            data: subCategoryInfo,
+            data: Object.assign({ id: Math.floor(Math.random() * 1000000000) }, subCategoryInfo),
         })
             .then(() => {
             res.status(201).send("Subcategory created");

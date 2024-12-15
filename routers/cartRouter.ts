@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import prisma from "../prisma/db";
 import helpers from "../helpers";
 import { ICartItem } from "./cartItemRouter";
+import middlewares from "../middlewares";
 const router: Router = Router();
 
 interface ICart {
@@ -80,7 +81,7 @@ router.post("/", (req: Request, res: Response) => {
     }
 })
 
-router.post("/addItem", async (req: Request, res: Response) => {
+router.post("/addItem", middlewares.checkAuthorization, async (req: Request, res: Response) => {
     try {
         const newCartItem = req.body;
         const currentUserId = helpers.getCurrentUserInfo(req)?.id;

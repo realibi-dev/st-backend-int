@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
+model user {
   id          Int       @id @default(autoincrement())
   username    String
   password    String
@@ -22,7 +22,7 @@ model User {
   deletedAt   DateTime?
 }
 
-model ProviderProfile {
+model providerProfile {
   id        Int       @id @default(autoincrement())
   name      String
   image     String?
@@ -33,7 +33,7 @@ model ProviderProfile {
   deletedAt DateTime?
 }
 
-model Category {
+model category {
   id        Int       @id @default(autoincrement())
   name      String
   createdAt DateTime  @default(now())
@@ -41,38 +41,39 @@ model Category {
   deletedAt DateTime?
 }
 
-model SubCategory {
-  id          Int       @id @default(autoincrement())
-  name        String
-  image       String?
-  categoryId  Int?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @default(now())
-  deletedAt   DateTime?
+model subCategory {
+  id         Int       @id @default(autoincrement())
+  name       String
+  image      String?
+  categoryId Int?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now())
+  deletedAt  DateTime?
 }
 
-model Product {
-  id                Int       @id @default(autoincrement())
-  name              String
-  compound          String
-  temperature       String
-  isActive          Boolean   @default(true)
-  price             Float
-  oldPrice          Float?
-  image             String?
-  isNew             Boolean   @default(true)
-  expirationDate    String
-  rating            Float     @default(5)
-  reviewsCount      Int       @default(0)
-  orderCoefficient  Float     @default(0)
-  subCategoryId     Int?
-  providerId        Int
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @default(now())
-  deletedAt         DateTime?
+model product {
+  id               Int       @id @default(autoincrement())
+  name             String
+  compound         String
+  temperature      String
+  isActive         Boolean   @default(true)
+  price            Float
+  oldPrice         Float?
+  image            String?
+  isNew            Boolean   @default(true)
+  expirationDate   String
+  rating           Float     @default(5)
+  reviewsCount     Int       @default(0)
+  salesCount       Int       @default(0)
+  orderCoefficient Float     @default(0)
+  subCategoryId    Int?
+  providerId       Int
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @default(now())
+  deletedAt        DateTime?
 }
 
-model Branch {
+model branch {
   id            Int       @id @default(autoincrement())
   name          String
   address       String
@@ -80,15 +81,15 @@ model Branch {
   contactPhone  String
   isActive      Boolean   @default(false)
   isVerified    Boolean   @default(false)
-  openTime	    String
-  closeTime	    String
+  openTime      String
+  closeTime     String
   userId        Int
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @default(now())
   deletedAt     DateTime?
 }
 
-model CafeOwnerUser {
+model cafeOwnerUser {
   id          Int       @id @default(autoincrement())
   companyName String
   userId      Int
@@ -97,26 +98,26 @@ model CafeOwnerUser {
   deletedAt   DateTime?
 }
 
-model Cart {
-  id          Int       @id @default(autoincrement())
-  userId      Int
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @default(now())
-  deletedAt   DateTime?
+model cart {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  deletedAt DateTime?
 }
 
-model CartItem {
-  id          Int       @id @default(autoincrement())
-  cartId      Int
-  productId   Int
-  quantity    Int
-  price       Int
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @default(now())
-  deletedAt   DateTime?
+model cartItem {
+  id        Int       @id @default(autoincrement())
+  cartId    Int
+  productId Int
+  quantity  Int
+  price     Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  deletedAt DateTime?
 }
 
-model Order {
+model order {
   id            Int       @id @default(autoincrement())
   orderNumber   String
   totalPrice    Float
@@ -131,36 +132,64 @@ model Order {
   deletedAt     DateTime?
 }
 
-model OrderItem {
-  id            Int       @id @default(autoincrement())
-  productId     Int
-  orderId       Int
-  price         Float
-  status        String    @default("main")
-  quantity      Int
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @default(now())
-  deletedAt     DateTime?
+model orderItem {
+  id        Int       @id @default(autoincrement())
+  productId Int
+  orderId   Int
+  price     Float
+  status    String    @default("main")
+  quantity  Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  deletedAt DateTime?
 }
 
-model ProductNewPrice {
-  id            Int       @id @default(autoincrement())
-  userId        Int
-  productId     Int
-  price         Float
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @default(now())
-  deletedAt     DateTime?
+model productNewPrice {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  productId Int
+  price     Float
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  deletedAt DateTime?
 }
 
-model ProductReview {
-  id            Int       @id @default(autoincrement())
-  userId        Int
-  orderId       Int
-  productId     Int
-  rating        Int
-  comment       String    @default("")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @default(now())
-  deletedAt     DateTime?
+model productReview {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  orderId   Int
+  productId Int
+  rating    Int
+  comment   String    @default("")
+  approved  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  deletedAt DateTime?
+}
+
+model badge {
+  id             Int       @id @default(autoincrement())
+  name           String
+  showOnMainPage Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now())
+  deletedAt      DateTime?
+}
+
+model productBadge {
+  id        Int       @id @default(autoincrement())
+  productId Int
+  badgeId   Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  deletedAt DateTime?
+}
+
+model globalConfiguration {
+  id        Int       @id @default(autoincrement())
+  name      String
+  value     String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  deletedAt DateTime?
 }
