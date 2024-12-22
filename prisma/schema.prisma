@@ -28,6 +28,7 @@ model providerProfile {
   image     String?
   isActive  Boolean   @default(false)
   userId    Int
+  workDays  String    @default("")
   createdAt DateTime  @default(now())
   updatedAt DateTime  @default(now())
   deletedAt DateTime?

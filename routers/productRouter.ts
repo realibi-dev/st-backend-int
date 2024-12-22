@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import prisma from "../prisma/db";
 import helpers from "./../helpers";
+import moment from "moment";
 const router: Router = Router();
 
 interface IProduct {
@@ -30,6 +31,16 @@ interface IFilter {
     sortingMethod: string|undefined; // Сортировка по цене: asc, desc
 }
 
+export async function getAvailableProviders() {
+    const currentDay = moment().format("dddd");
+    const providers = await prisma.providerProfile.findMany({ where: { deletedAt: null } });
+    const availableProviders = providers.filter(provider => {
+        return !provider.workDays || provider.workDays.includes(currentDay);
+    });
+
+    return availableProviders;
+}
+
 router.get('/filterData', async (req: Request, res: Response) => {
     try {
         const providers = await prisma.providerProfile.findMany({ where: { deletedAt: null } });
@@ -51,9 +62,11 @@ router.get('/filterData', async (req: Request, res: Response) => {
 
 router.get("/", async (req: Request, res: Response) => {
     try {
+        const availableProviders = await getAvailableProviders();
         let data = await prisma.product.findMany({
             where: {
                 deletedAt: null,
+                providerId: { in: availableProviders.map(provider => provider.id) },
             },
             orderBy: [
                 { orderCoefficient: 'desc' },
@@ -112,15 +125,9 @@ router.get("/", async (req: Request, res: Response) => {
             }
         });
 
-        const providers = await prisma.providerProfile.findMany({
-            where: {
-                deletedAt: null
-            },
-        });
-
         data = data.map(product => ({
             ...product,
-            providerName: providers.find(p => p.id === product.providerId)?.name,
+            providerName: availableProviders.find(p => p.id === product.providerId)?.name,
             // @ts-ignore
             badges: badgeWithProductIds.reduce((acc, item) => {
                 if (item.productIds.includes(product.id)) {
@@ -169,10 +176,10 @@ router.post("/filter", async (req: Request, res: Response) => {
             searchConditions.price = { lte: +filters.maxPrice };
         }
 
+        let availableProviders = await getAvailableProviders();
+
         if ("providerIds" in filters) {
-            searchConditions.providerId = {
-                in: filters.providerIds,
-            };
+            availableProviders = availableProviders.filter(provider => filters.providerIds?.includes(provider.id))
         }
 
         if ("subCategoryIds" in filters) {
@@ -196,7 +203,10 @@ router.post("/filter", async (req: Request, res: Response) => {
                 { reviewsCount: 'desc' },
                 sortingMethod,
             ],
-            where: searchConditions,
+            where: {
+                ...searchConditions,
+                providerId: { in: availableProviders.map(item => item.id) },
+            },
         });
 
         if ("name" in filters) {
@@ -283,11 +293,13 @@ router.post("/filter", async (req: Request, res: Response) => {
 router.get("/subCategory/:subCategoryId", async (req: Request, res: Response) => {
     try {
         const subCategoryId = +req.params.subCategoryId;
+        const availableProviders = await getAvailableProviders();
 
         let data = await prisma.product.findMany({
             where: {
                 deletedAt: null,
                 subCategoryId,
+                providerId: { in: availableProviders.map(item => item.id) },
             }
         })
 

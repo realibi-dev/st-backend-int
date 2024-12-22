@@ -4,6 +4,7 @@ import prisma from "./../prisma/db";
 import dotenv from "dotenv";
 import middlewares from "./../middlewares";
 import helpers from "../helpers";
+import {userInfo} from "node:os";
 
 dotenv.config();
 const router: Router = Router();
@@ -30,6 +31,22 @@ interface IUserAuth {
     username: string;
     password: string;
 }
+
+router.get("/getProviderInfoByUserId/:userId", async (req: Request, res: Response) => {
+    try {
+        const userId = req.params.userId;
+        const providerProfileInfo = await prisma.providerProfile.findFirst({
+            where: {
+                userId: +userId,
+            }
+        });
+
+        res.status(200).send({ success: true, info: providerProfileInfo });
+    } catch(e) {
+        console.log(e);
+        res.status(500).send({ success: false });
+    }
+});
 
 router.get("/getCart", async (req: Request, res: Response) => {
     try {
@@ -162,7 +179,6 @@ router.post("/auth", async (req: Request, res: Response) => {
         }
 
         const token = jwt.sign(payload, secretKey, options);
-        console.log("new token", token);
 
         res.send({
             user: { ...user, password: undefined },
@@ -276,6 +292,44 @@ router.delete("/:id", (req: Request, res: Response) => {
             console.error(err);
             res.status(500).send("Server error. Please try later");
         });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send("Server error. Please try later");
+    }
+})
+
+router.put('/:id', async (req: Request, res: Response) => {
+    const id = +req.params.id;
+    const { fullname, workDays } = req.body;
+
+    try {
+        const updatedUser = await prisma.user.update({
+            where: {
+                id: id,
+            },
+            data: {
+                fullname
+            }
+        })
+
+        if (workDays) {
+            const providerProfile = await prisma.providerProfile.findFirst({
+                where: {
+                    userId: id,
+                }
+            })
+
+            await prisma.providerProfile.update({
+                where: {
+                    id: providerProfile?.id,
+                },
+                data: {
+                    workDays: workDays || "",
+                }
+            })
+        }
+
+        res.status(200).send({ success: true, user: { ...updatedUser, password: undefined } });
     } catch (error) {
         console.error(error);
         res.status(500).send("Server error. Please try later");

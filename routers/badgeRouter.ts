@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import prisma from "../prisma/db";
+import {getAvailableProviders} from "./productRouter";
 const router: Router = Router();
 
 router.get("/search", async (req: Request, res: Response) => {
@@ -31,11 +32,16 @@ router.get("/search", async (req: Request, res: Response) => {
             },
         });
 
+        const availableProviders = await getAvailableProviders();
+
         let products = await prisma.product.findMany({
             where: {
                 deletedAt: null,
                 id: {
                     in: productsOfBadge.map(product => product.productId),
+                },
+                providerId: {
+                    in: availableProviders.map(provider => provider.id),
                 }
             }
         });
@@ -95,11 +101,16 @@ router.get("/:badgeId", async(req: Request, res: Response) => {
             },
         });
 
+        const availableProviders = await getAvailableProviders();
+
         let products = await prisma.product.findMany({
             where: {
                 deletedAt: null,
                 id: {
                     in: productsOfBadge.map(product => product.productId),
+                },
+                providerId: {
+                    in: availableProviders.map(provider => provider.id),
                 }
             }
         });
