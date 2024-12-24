@@ -28,18 +28,18 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-app.use("/file", express.static("./uploads"));
-app.use("/categories", categoryRouter);
-app.use("/users", userRouter);
-app.use("/products", productRouter);
-app.use("/carts", cartRouter);
-app.use("/orders", orderRouter);
-app.use("/branches", branchRouter);
-app.use("/image", imageRouter);
-app.use("/cartItems", cartItemsRouter);
-app.use("/providers", providersRouter);
-app.use("/productReviews", productReviewRouter);
-app.use("/badges", badgesRouter);
-app.use("/configurations", configurationRouter);
+app.use("/api/file", express.static("./uploads"));
+app.use("/api/categories", categoryRouter);
+app.use("/api/users", userRouter);
+app.use("/api/products", productRouter);
+app.use("/api/carts", cartRouter);
+app.use("/api/orders", orderRouter);
+app.use("/api/branches", branchRouter);
+app.use("/api/image", imageRouter);
+app.use("/api/cartItems", cartItemsRouter);
+app.use("/api/providers", providersRouter);
+app.use("/api/productReviews", productReviewRouter);
+app.use("/api/badges", badgesRouter);
+app.use("/api/configurations", configurationRouter);
 
 app.listen(process.env.PORT);
