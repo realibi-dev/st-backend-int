@@ -78,10 +78,16 @@ router.get("/getCart", async (req: Request, res: Response) => {
                     }
                 }
             });
+
+            const currentUserActualStatus = await prisma.user.findFirst({
+                where: {
+                    id: currentUser?.id,
+                }
+            });
     
             res.status(200).send({
                 success: true,
-                orderAllowed: (currentUser?.isActive && await helpers.orderDeadlineCheck()) || false,
+                orderAllowed: (currentUserActualStatus?.isActive && await helpers.orderDeadlineCheck()) || false,
                 cartId: cart.id,
                 items: cartItems.map(item => {
                     const product = products.find(p => p.id === item.productId);
