@@ -50,18 +50,16 @@ router.get("/getProviderInfoByUserId/:userId", async (req: Request, res: Respons
 
 router.get("/getCart", async (req: Request, res: Response) => {
     try {
-        const currentUserId = helpers.getCurrentUserInfo(req).id;
-    
+        const currentUser = helpers.getCurrentUserInfo(req);
+        if (!currentUser?.id) {
+            res.status(401).send({ success: false });
+            return;
+        }
+
         const cart = await prisma.cart.findFirst({
             where: {
-                userId: currentUserId,
+                userId: currentUser.id,
                 deletedAt: null
-            }
-        });
-
-        const currentUser = await prisma.user.findFirst({
-            where: {
-                id: currentUserId,
             }
         });
     
