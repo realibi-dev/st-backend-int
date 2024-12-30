@@ -27,8 +27,8 @@ const orderDeadlineCheck = async () => {
         const currentHour = new Date().getHours();
         const currentMinute = new Date().getMinutes();
         const currentTimeInMinutes = toMinutes(currentHour, currentMinute);
-        const startTimeInMinutes = toMinutes(+orderStartTime.split("-")[0], +orderStartTime.split("-")[1]);
-        const endTimeInMinutes = toMinutes(+orderEndTime.split("-")[0], +orderEndTime.split("-")[1]);
+        const startTimeInMinutes = toMinutes(+(orderStartTime.split("-")[0]), +(orderStartTime.split("-")[1]));
+        const endTimeInMinutes = toMinutes(+(orderEndTime.split("-")[0]), +(orderEndTime.split("-")[1]);
         return startTimeInMinutes < currentTimeInMinutes && currentTimeInMinutes < endTimeInMinutes;
     } else {
         return true;
