@@ -19,7 +19,6 @@ interface IBranch {
 router.get("/", middlewares.checkAuthorization, (req: Request, res: Response) => {
     try {
         const currentUser = helpers.getCurrentUserInfo(req);
-        console.log("currentUser", currentUser);
 
         prisma.branch.findMany({
             where: {

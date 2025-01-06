@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import prisma from "../prisma/db";
 import {getAvailableProviders} from "./productRouter";
+import helpers from "../helpers";
 const router: Router = Router();
 
 router.get("/search", async (req: Request, res: Response) => {
@@ -121,6 +122,30 @@ router.get("/:badgeId", async(req: Request, res: Response) => {
                 providerName: providers.find(p => p.id === product.providerId)?.name,
             }
         });
+
+        const currentUserId = req.body?.userId || helpers.getCurrentUserInfo(req)?.id;
+        console.log("current user id", currentUserId);
+
+        if (currentUserId) {
+            const newPriceProducts = await prisma.productNewPrice.findMany({
+                where: {
+                    deletedAt: null,
+                    userId: currentUserId
+                }
+            });
+
+            if (newPriceProducts.length) {
+                const productsWithUpdatedPrices = products.map(product => {
+                    return {
+                        ...product,
+                        price: newPriceProducts.find(item => item.productId === product.id)?.price || product.price,
+                    }
+                });
+
+                res.status(200).send(productsWithUpdatedPrices);
+                return;
+            }
+        }
 
         res.status(200).send({
             badgeName: badge.name,
