@@ -23,6 +23,7 @@ router.get("/", middlewares.checkAuthorization, (req: Request, res: Response) =>
         prisma.branch.findMany({
             where: {
                 ...(currentUser && { userId: currentUser.id }),
+                ...(currentUser && { isVerified: true }),
                 deletedAt: null,
             }
         })
