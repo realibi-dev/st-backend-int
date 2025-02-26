@@ -20,69 +20,61 @@ const redirectToLogin = (req: Request, res: Response) => {
     `);
 }
 
-function checkAuthorization(req: Request, res: Response, next: NextFunction) {
+async function checkAuthorization(req: Request, res: Response, next: NextFunction) {
     const bearerToken = req.headers.authorization;  //    "Bearer asdlkjhfbak348756edjhfag3746"
 
     if (bearerToken) {
         const token: string = bearerToken.split(" ")[1];
-
-        jwt.verify(token, secretKey, function(err, decoded) {
-            if (err) {
-                redirectToLogin(req, res);
-                return;
-            }
-
+        try {
+            await jwt.verify(token, secretKey);
             next();
-        });
+        } catch(err) {
+            res.status(401).send("Not Authorized");
+        }
     } else {
-        console.log("redirecting to authentication");
-        res.redirect(301, "/profile/auth");
+        res.status(401).send("Not Authorized");
     }
 }
 
-function checkAdmin(req: Request, res: Response, next: NextFunction) {
+async function checkAdmin(req: Request, res: Response, next: NextFunction) {
     const bearerToken = req.headers.authorization;
 
     if (bearerToken) {
         const token: string = bearerToken.split(" ")[1];
-
-        jwt.verify(token, secretKey, function(err, decoded: any) {
-            if (err) {
-                redirectToLogin(req, res);
-                return;
-            }
-
+        try {
+            const decoded: any = await jwt.verify(token, secretKey);
+            
             if (decoded.isSuperuser) {
                 next();
             } else {
-                res.status(400).send("This endpoint needs admin authorization!");
+                res.status(401).send("This endpoint needs admin authorization!");
             }
-        });
+        } catch(err) {
+            res.status(401).send("Not Authorized");
+        }
     } else {
-        redirectToLogin(req, res);
+        res.status(401).send("Not Authorized");
     }
 }
 
-function checkProvider(req: Request, res: Response, next: NextFunction) {
+async function checkProvider(req: Request, res: Response, next: NextFunction) {
     const bearerToken = req.headers.authorization;
 
     if (bearerToken) {
         const token: string = bearerToken.split(" ")[1];
-
-        jwt.verify(token, secretKey, function(err, decoded: any) {
-            if (err) {
-                redirectToLogin(req, res);
-                return;
-            }
-
+        try {
+            const decoded: any = await jwt.verify(token, secretKey);
+            
             if (decoded.accountType === "provider") {
                 next();
             } else {
                 res.status(400).send("This endpoint needs provider authorization!");
             }
-        });
+        } catch(err) {
+            res.status(401).send("Not Authorized");
+        }
     } else {
-        redirectToLogin(req, res);
+        res.status(401).send("Not Authorized");
     }
 }
 
