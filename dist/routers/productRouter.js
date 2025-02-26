@@ -12,10 +12,22 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getAvailableProviders = getAvailableProviders;
 const express_1 = require("express");
 const db_1 = __importDefault(require("../prisma/db"));
 const helpers_1 = __importDefault(require("./../helpers"));
+const moment_1 = __importDefault(require("moment"));
 const router = (0, express_1.Router)();
+function getAvailableProviders() {
+    return __awaiter(this, void 0, void 0, function* () {
+        const currentDay = (0, moment_1.default)().format("dddd");
+        const providers = yield db_1.default.providerProfile.findMany({ where: { deletedAt: null } });
+        const availableProviders = providers.filter(provider => {
+            return !provider.workDays || provider.workDays.includes(currentDay);
+        });
+        return availableProviders;
+    });
+}
 router.get('/filterData', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const providers = yield db_1.default.providerProfile.findMany({ where: { deletedAt: null } });
@@ -37,9 +49,11 @@ router.get('/filterData', (req, res) => __awaiter(void 0, void 0, void 0, functi
 router.get("/", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a, _b;
     try {
+        const availableProviders = yield getAvailableProviders();
         let data = yield db_1.default.product.findMany({
             where: {
                 deletedAt: null,
+                providerId: { in: availableProviders.map(provider => provider.id) },
             },
             orderBy: [
                 { orderCoefficient: 'desc' },
@@ -85,14 +99,9 @@ router.get("/", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
                     .filter(pb => pb.badgeId === badge.id)
                     .map(pb => pb.productId) });
         });
-        const providers = yield db_1.default.providerProfile.findMany({
-            where: {
-                deletedAt: null
-            },
-        });
         data = data.map(product => {
             var _a;
-            return (Object.assign(Object.assign({}, product), { providerName: (_a = providers.find(p => p.id === product.providerId)) === null || _a === void 0 ? void 0 : _a.name, 
+            return (Object.assign(Object.assign({}, product), { providerName: (_a = availableProviders.find(p => p.id === product.providerId)) === null || _a === void 0 ? void 0 : _a.name, 
                 // @ts-ignore
                 badges: badgeWithProductIds.reduce((acc, item) => {
                     if (item.productIds.includes(product.id)) {
@@ -137,10 +146,9 @@ router.post("/filter", (req, res) => __awaiter(void 0, void 0, void 0, function*
             // @ts-ignore
             searchConditions.price = { lte: +filters.maxPrice };
         }
+        let availableProviders = yield getAvailableProviders();
         if ("providerIds" in filters) {
-            searchConditions.providerId = {
-                in: filters.providerIds,
-            };
+            availableProviders = availableProviders.filter(provider => { var _a; return (_a = filters.providerIds) === null || _a === void 0 ? void 0 : _a.includes(provider.id); });
         }
         if ("subCategoryIds" in filters) {
             searchConditions.subCategoryId = {
@@ -160,7 +168,7 @@ router.post("/filter", (req, res) => __awaiter(void 0, void 0, void 0, function*
                 { reviewsCount: 'desc' },
                 sortingMethod,
             ],
-            where: searchConditions,
+            where: Object.assign(Object.assign({}, searchConditions), { providerId: { in: availableProviders.map(item => item.id) } }),
         });
         if ("name" in filters) {
             // @ts-ignore
@@ -233,10 +241,12 @@ router.get("/subCategory/:subCategoryId", (req, res) => __awaiter(void 0, void 0
     var _a, _b;
     try {
         const subCategoryId = +req.params.subCategoryId;
+        const availableProviders = yield getAvailableProviders();
         let data = yield db_1.default.product.findMany({
             where: {
                 deletedAt: null,
                 subCategoryId,
+                providerId: { in: availableProviders.map(item => item.id) },
             }
         });
         const currentUserId = ((_a = req.body) === null || _a === void 0 ? void 0 : _a.userId) || ((_b = helpers_1.default.getCurrentUserInfo(req)) === null || _b === void 0 ? void 0 : _b.id);

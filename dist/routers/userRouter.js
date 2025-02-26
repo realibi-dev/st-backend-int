@@ -24,18 +24,32 @@ const secretKey = process.env.SECRET_KEY;
 if (!secretKey) {
     throw new Error('SECRET_KEY not found in environment variables');
 }
-router.get("/getCart", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+router.get("/getProviderInfoByUserId/:userId", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const currentUserId = helpers_1.default.getCurrentUserInfo(req).id;
-        const cart = yield db_1.default.cart.findFirst({
+        const userId = req.params.userId;
+        const providerProfileInfo = yield db_1.default.providerProfile.findFirst({
             where: {
-                userId: currentUserId,
-                deletedAt: null
+                userId: +userId,
             }
         });
-        const currentUser = yield db_1.default.user.findFirst({
+        res.status(200).send({ success: true, info: providerProfileInfo });
+    }
+    catch (e) {
+        console.log(e);
+        res.status(500).send({ success: false });
+    }
+}));
+router.get("/getCart", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const currentUser = helpers_1.default.getCurrentUserInfo(req);
+        if (!(currentUser === null || currentUser === void 0 ? void 0 : currentUser.id)) {
+            res.status(401).send({ success: false });
+            return;
+        }
+        const cart = yield db_1.default.cart.findFirst({
             where: {
-                id: currentUserId,
+                userId: currentUser.id,
+                deletedAt: null
             }
         });
         if (cart) {
@@ -52,9 +66,14 @@ router.get("/getCart", (req, res) => __awaiter(void 0, void 0, void 0, function*
                     }
                 }
             });
+            const currentUserActualStatus = yield db_1.default.user.findFirst({
+                where: {
+                    id: currentUser === null || currentUser === void 0 ? void 0 : currentUser.id,
+                }
+            });
             res.status(200).send({
                 success: true,
-                orderAllowed: ((currentUser === null || currentUser === void 0 ? void 0 : currentUser.isActive) && (yield helpers_1.default.orderDeadlineCheck())) || false,
+                orderAllowed: ((currentUserActualStatus === null || currentUserActualStatus === void 0 ? void 0 : currentUserActualStatus.isActive) && (yield helpers_1.default.orderDeadlineCheck())) || false,
                 cartId: cart.id,
                 items: cartItems.map(item => {
                     const product = products.find(p => p.id === item.productId);
@@ -137,7 +156,6 @@ router.post("/auth", (req, res) => __awaiter(void 0, void 0, void 0, function* (
             expiresIn: '2y',
         };
         const token = jsonwebtoken_1.default.sign(payload, secretKey, options);
-        console.log("new token", token);
         res.send({
             user: Object.assign(Object.assign({}, user), { password: undefined }),
             token: token,
@@ -247,4 +265,38 @@ router.delete("/:id", (req, res) => {
         res.status(500).send("Server error. Please try later");
     }
 });
+router.put('/:id', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const id = +req.params.id;
+    const { fullname, workDays } = req.body;
+    try {
+        const updatedUser = yield db_1.default.user.update({
+            where: {
+                id: id,
+            },
+            data: {
+                fullname
+            }
+        });
+        if (workDays) {
+            const providerProfile = yield db_1.default.providerProfile.findFirst({
+                where: {
+                    userId: id,
+                }
+            });
+            yield db_1.default.providerProfile.update({
+                where: {
+                    id: providerProfile === null || providerProfile === void 0 ? void 0 : providerProfile.id,
+                },
+                data: {
+                    workDays: workDays || "",
+                }
+            });
+        }
+        res.status(200).send({ success: true, user: Object.assign(Object.assign({}, updatedUser), { password: undefined }) });
+    }
+    catch (error) {
+        console.error(error);
+        res.status(500).send("Server error. Please try later");
+    }
+}));
 exports.default = router;

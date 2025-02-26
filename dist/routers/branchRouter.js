@@ -11,9 +11,8 @@ const router = (0, express_1.Router)();
 router.get("/", middlewares_1.default.checkAuthorization, (req, res) => {
     try {
         const currentUser = helpers_1.default.getCurrentUserInfo(req);
-        console.log("currentUser", currentUser);
         db_1.default.branch.findMany({
-            where: Object.assign(Object.assign({}, (currentUser && { userId: currentUser.id })), { deletedAt: null })
+            where: Object.assign(Object.assign(Object.assign({}, (currentUser && { userId: currentUser.id })), (currentUser && { isVerified: true })), { deletedAt: null })
         })
             .then((data) => {
             res.status(200).send(data);

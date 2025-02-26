@@ -1,4 +1,13 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -21,62 +30,67 @@ const redirectToLogin = (req, res) => {
     `);
 };
 function checkAuthorization(req, res, next) {
-    const bearerToken = req.headers.authorization; //    "Bearer asdlkjhfbak348756edjhfag3746"
-    if (bearerToken) {
-        const token = bearerToken.split(" ")[1];
-        jsonwebtoken_1.default.verify(token, secretKey, function (err, decoded) {
-            if (err) {
-                redirectToLogin(req, res);
-                return;
+    return __awaiter(this, void 0, void 0, function* () {
+        const bearerToken = req.headers.authorization; //    "Bearer asdlkjhfbak348756edjhfag3746"
+        if (bearerToken) {
+            const token = bearerToken.split(" ")[1];
+            try {
+                yield jsonwebtoken_1.default.verify(token, secretKey);
+                next();
             }
-            next();
-        });
-    }
-    else {
-        console.log("redirecting to authentication");
-        res.redirect(301, "/profile/auth");
-    }
+            catch (err) {
+                res.status(401).send("Not Authorized");
+            }
+        }
+        else {
+            res.status(401).send("Not Authorized");
+        }
+    });
 }
 function checkAdmin(req, res, next) {
-    const bearerToken = req.headers.authorization;
-    if (bearerToken) {
-        const token = bearerToken.split(" ")[1];
-        jsonwebtoken_1.default.verify(token, secretKey, function (err, decoded) {
-            if (err) {
-                redirectToLogin(req, res);
-                return;
+    return __awaiter(this, void 0, void 0, function* () {
+        const bearerToken = req.headers.authorization;
+        if (bearerToken) {
+            const token = bearerToken.split(" ")[1];
+            try {
+                const decoded = yield jsonwebtoken_1.default.verify(token, secretKey);
+                if (decoded.isSuperuser) {
+                    next();
+                }
+                else {
+                    res.status(401).send("This endpoint needs admin authorization!");
+                }
             }
-            if (decoded.isSuperuser) {
-                next();
+            catch (err) {
+                res.status(401).send("Not Authorized");
             }
-            else {
-                res.status(400).send("This endpoint needs admin authorization!");
-            }
-        });
-    }
-    else {
-        redirectToLogin(req, res);
-    }
+        }
+        else {
+            res.status(401).send("Not Authorized");
+        }
+    });
 }
 function checkProvider(req, res, next) {
-    const bearerToken = req.headers.authorization;
-    if (bearerToken) {
-        const token = bearerToken.split(" ")[1];
-        jsonwebtoken_1.default.verify(token, secretKey, function (err, decoded) {
-            if (err) {
-                redirectToLogin(req, res);
-                return;
+    return __awaiter(this, void 0, void 0, function* () {
+        const bearerToken = req.headers.authorization;
+        if (bearerToken) {
+            const token = bearerToken.split(" ")[1];
+            try {
+                const decoded = yield jsonwebtoken_1.default.verify(token, secretKey);
+                if (decoded.accountType === "provider") {
+                    next();
+                }
+                else {
+                    res.status(400).send("This endpoint needs provider authorization!");
+                }
             }
-            if (decoded.accountType === "provider") {
-                next();
+            catch (err) {
+                res.status(401).send("Not Authorized");
             }
-            else {
-                res.status(400).send("This endpoint needs provider authorization!");
-            }
-        });
-    }
-    else {
-        redirectToLogin(req, res);
-    }
+        }
+        else {
+            res.status(401).send("Not Authorized");
+        }
+    });
 }
 exports.default = { checkAuthorization, checkAdmin, checkProvider };
