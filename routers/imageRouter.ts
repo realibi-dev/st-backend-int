@@ -2,7 +2,6 @@ import { Router, Request, Response } from "express";
 import prisma from "../prisma/db";
 import path from "path";
 import fs from "fs";
-import multer from "multer";
 const router: Router = Router();
 
 const productImagesDir = "./uploads/product_images/";
