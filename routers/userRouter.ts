@@ -87,7 +87,7 @@ router.get("/getCart", async (req: Request, res: Response) => {
     
             res.status(200).send({
                 success: true,
-                orderAllowed: (currentUserActualStatus?.isActive && await helpers.orderDeadlineCheck()) || false,
+                orderAllowed: (currentUserActualStatus?.isActive && await helpers.orderDeadlineCheck()),
                 cartId: cart.id,
                 items: cartItems.map(item => {
                     const product = products.find(p => p.id === item.productId);

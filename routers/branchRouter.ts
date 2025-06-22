@@ -20,6 +20,8 @@ router.get("/", middlewares.checkAuthorization, (req: Request, res: Response) =>
     try {
         const currentUser = helpers.getCurrentUserInfo(req);
 
+        console.log("currentUser", currentUser);
+
         prisma.branch.findMany({
             where: {
                 ...(currentUser && { userId: currentUser.id }),
@@ -28,6 +30,7 @@ router.get("/", middlewares.checkAuthorization, (req: Request, res: Response) =>
             }
         })
         .then((data) => {
+            console.log("found branches");
             res.status(200).send(data);
         })
         .catch((err) => {

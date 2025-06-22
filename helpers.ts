@@ -38,20 +38,14 @@ const orderDeadlineCheck = async () => {
 const getCurrentUserInfo = (req: Request): any => {
     const bearerToken = req.headers.authorization;
     if (bearerToken) {
-        const token: string = bearerToken.split(" ")[1];
-
-        let userInfo;
-
-        jwt.verify(token, process.env.SECRET_KEY || "", function(err, decoded: any) {
-            if (err) {
-                console.log("err", err);
-                return;
-            }
-            // console.log("decoded", decoded);
-            userInfo = decoded;
-        });
-
-        return userInfo;
+        try {
+            const token: string = bearerToken.split(" ")[1];
+            const userInfo = jwt.verify(token, process.env.SECRET_KEY || "");
+            return userInfo;
+        } catch (err) {
+            console.log(err);
+            return null;
+        }
     } else {
         return;
     }

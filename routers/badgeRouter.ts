@@ -11,7 +11,7 @@ router.get("/search", async (req: Request, res: Response) => {
         const badge = await prisma.badge.findFirst({
             where: {
                 name: searchName,
-                // deletedAt: null,
+                deletedAt: null,
             }
         });
 
