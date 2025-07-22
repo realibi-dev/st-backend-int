@@ -324,6 +324,11 @@ router.post(
     try {
       const financialReportSettings: IFinancialReportSettings = req.body;
 
+      if (!financialReportSettings.branchId) {
+        res.status(200).send([]);
+        return;
+      }
+
       const orders = await prisma.order.findMany({
         where: {
           deletedAt: null,

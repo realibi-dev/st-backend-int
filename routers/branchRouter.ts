@@ -16,11 +16,34 @@ interface IBranch {
     isVerified: boolean|undefined; // need only for put request
 }
 
-router.get("/", middlewares.checkAuthorization, (req: Request, res: Response) => {
+router.get("/all", middlewares.checkAuthorization, (req: Request, res: Response) => {
     try {
         const currentUser = helpers.getCurrentUserInfo(req);
 
-        console.log("currentUser", currentUser);
+        prisma.branch.findMany({
+            where: {
+                ...(currentUser && { userId: currentUser.id }),
+                // ...(currentUser && { isVerified: true }),
+                deletedAt: null,
+            }
+        })
+          .then((data) => {
+              console.log("found branches", data);
+              res.status(200).send(data);
+          })
+          .catch((err) => {
+              console.error("asd", err);
+              res.status(500).send("Server error. Please try later");
+          });
+    } catch(e) {
+        console.error(e);
+        res.status(500).send("Server error. Please try later");
+    }
+})
+
+router.get("/", middlewares.checkAuthorization, (req: Request, res: Response) => {
+    try {
+        const currentUser = helpers.getCurrentUserInfo(req);
 
         prisma.branch.findMany({
             where: {
