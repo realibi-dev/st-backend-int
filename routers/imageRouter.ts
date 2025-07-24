@@ -25,9 +25,9 @@ router.post("/uploadProductImage", async (req: Request, res: Response) => {
     }
 
     // Проверка на формат Base64
-    const base64Pattern = /^data:image\/png;base64,/;
+    const base64Pattern = /^data:image\/(png|jpeg);base64,/;
     if (!base64Pattern.test(image)) {
-      return res.status(400).send("Invalid image format. Only Base64-encoded PNG images are allowed.");
+      return res.status(400).send("Invalid image format. Only Base64-encoded PNG and JPEG images are allowed.");
     }
 
     // Генерация имени файла
@@ -35,11 +35,18 @@ router.post("/uploadProductImage", async (req: Request, res: Response) => {
     const fileName = `${random}_${imageName.replaceAll(' ', '')}`;
     const filePath = path.join(productImagesDir, fileName);
 
-    // Удаление префикса "data:image/png;base64,"
+    // Удаление префикса "data:image/(png|jpeg);base64,"
     const base64Data = image.replace(base64Pattern, "");
 
-    // Сохранение файла
-    fs.writeFileSync(filePath, base64Data, "base64");
+    // Проверка размера файла (50MB лимит для Base64 данных)
+    const fileSizeInBytes = (base64Data.length * 3) / 4;
+    const maxSizeInBytes = 50 * 1024 * 1024; // 50MB
+    if (fileSizeInBytes > maxSizeInBytes) {
+      return res.status(400).send("File size exceeds 50MB limit.");
+    }
+
+    // Асинхронное сохранение файла
+    await fs.promises.writeFile(filePath, base64Data, "base64");
 
     // Сохранение пути в базу данных
     await prisma.product.update({
@@ -75,9 +82,9 @@ router.post("/uploadUserImage", async (req: Request, res: Response) => {
     }
 
     // Проверка на формат Base64
-    const base64Pattern = /^data:image\/png;base64,/;
+    const base64Pattern = /^data:image\/(png|jpeg);base64,/;
     if (!base64Pattern.test(image)) {
-      return res.status(400).send("Invalid image format. Only Base64-encoded PNG images are allowed.");
+      return res.status(400).send("Invalid image format. Only Base64-encoded PNG and JPEG images are allowed.");
     }
 
     // Генерация имени файла
@@ -85,11 +92,18 @@ router.post("/uploadUserImage", async (req: Request, res: Response) => {
     const fileName = `${random}_${imageName}`;
     const filePath = path.join(userImagesDir, fileName);
 
-    // Удаление префикса "data:image/png;base64,"
+    // Удаление префикса "data:image/(png|jpeg);base64,"
     const base64Data = image.replace(base64Pattern, "");
 
-    // Сохранение файла
-    fs.writeFileSync(filePath, base64Data, "base64");
+    // Проверка размера файла (50MB лимит для Base64 данных)
+    const fileSizeInBytes = (base64Data.length * 3) / 4;
+    const maxSizeInBytes = 50 * 1024 * 1024; // 50MB
+    if (fileSizeInBytes > maxSizeInBytes) {
+      return res.status(400).send("File size exceeds 50MB limit.");
+    }
+
+    // Асинхронное сохранение файла
+    await fs.promises.writeFile(filePath, base64Data, "base64");
 
     // Сохранение пути в базу данных
     await prisma.user.update({
@@ -123,9 +137,9 @@ router.post("/uploadSubCategoryImage", async (req: Request, res: Response) => {
     }
 
     // Проверка на формат Base64
-    const base64Pattern = /^data:image\/png;base64,/;
+    const base64Pattern = /^data:image\/(png|jpeg);base64,/;
     if (!base64Pattern.test(image)) {
-      return res.status(400).send("Invalid image format. Only Base64-encoded PNG images are allowed.");
+      return res.status(400).send("Invalid image format. Only Base64-encoded PNG and JPEG images are allowed.");
     }
 
     // Генерация имени файла
@@ -133,11 +147,18 @@ router.post("/uploadSubCategoryImage", async (req: Request, res: Response) => {
     const fileName = `${random}_${imageName}`;
     const filePath = path.join("./uploads/subcategories_images/", fileName);
 
-    // Удаление префикса "data:image/png;base64,"
+    // Удаление префикса "data:image/(png|jpeg);base64,"
     const base64Data = image.replace(base64Pattern, "");
 
-    // Сохранение файла
-    fs.writeFileSync(filePath, base64Data, "base64");
+    // Проверка размера файла (50MB лимит для Base64 данных)
+    const fileSizeInBytes = (base64Data.length * 3) / 4;
+    const maxSizeInBytes = 50 * 1024 * 1024; // 50MB
+    if (fileSizeInBytes > maxSizeInBytes) {
+      return res.status(400).send("File size exceeds 50MB limit.");
+    }
+
+    // Асинхронное сохранение файла
+    await fs.promises.writeFile(filePath, base64Data, "base64");
 
     // Сохранение пути в базу данных
     await prisma.subCategory.update({
