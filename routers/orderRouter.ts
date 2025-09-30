@@ -161,7 +161,7 @@ router.get("/consignment/:orderId", async (req: Request, res: Response) => {
       value: orderItems
         .reduce((acc, item) => acc + item.price * item.quantity, 0)
         .toString(),
-        fontWeight: "bold"
+      fontWeight: "bold"
     },
   ]);
 
@@ -521,98 +521,108 @@ router.post(
   "/",
   middlewares.checkAuthorization,
   async (req: Request, res: Response) => {
+    console.log("pzdc");
     try {
       const currentUser = helpers.getCurrentUserInfo(req);
 
-      if (currentUser) {
-        const orderInfo: IOrder = req.body;
-        orderInfo.orderNumber = String(Math.round(Math.random() * 100000000));
-
-        const cart = await prisma.cart.findFirst({
-          where: {
-            userId: currentUser.id,
-            deletedAt: null,
-          },
-        });
-
-        const cartItems = await prisma.cartItem.findMany({
-          where: {
-            cartId: cart?.id,
-            deletedAt: null,
-          },
-        });
-
-        orderInfo.totalPrice = cartItems.reduce((currentSum, item) => {
-          return currentSum + (item.price || 0) * item.quantity;
-        }, 0);
-
-        orderInfo.userId = currentUser.id;
-
-        const orderPayload = { ...orderInfo };
-
-        prisma.order
-          .create({
-            data: {
-              id: Math.floor(Math.random() * 1000000000),
-              ...orderPayload,
-            },
-          })
-          .then(async (order) => {
-            cartItems.map(async (item) => {
-              await prisma.orderItem.create({
-                data: {
-                  id: Math.floor(Math.random() * 1000000000),
-                  productId: item.productId,
-                  orderId: order.id,
-                  price: item.price || 0,
-                  status: order.status,
-                  quantity: item.quantity,
-                },
-              });
-            });
-
-            await prisma.cart.update({
-              where: {
-                id: cart?.id,
-              },
-              data: {
-                deletedAt: new Date(),
-              },
-            });
-
-            await prisma.cartItem.updateMany({
-              where: {
-                cartId: cart?.id,
-              },
-              data: {
-                deletedAt: new Date(),
-              },
-            });
-
-            cartItems.forEach(async (item) => {
-              const product = await prisma.product.findFirst({
-                where: {
-                  id: item.productId,
-                },
-              });
-
-              await prisma.product.update({
-                where: {
-                  id: product?.id,
-                },
-                data: {
-                  salesCount: (product?.salesCount || 0) + item.quantity,
-                },
-              });
-            });
-
-            res.status(201).send("Order created");
-          })
-          .catch((err) => {
-            console.error(err);
-            res.status(500).send("Server error. Please try later");
-          });
+      if (!currentUser) {
+        return res.status(401).send("Unauthorized");
       }
+
+      const orderInfo: IOrder = req.body;
+      orderInfo.orderNumber = String(Math.round(Math.random() * 100000000));
+
+      const cart = await prisma.cart.findFirst({
+        where: {
+          userId: currentUser.id,
+          deletedAt: null,
+        },
+      });
+
+      if (!cart) {
+        return res.status(404).send("Cart not found");
+      }
+
+      const cartItems = await prisma.cartItem.findMany({
+        where: {
+          cartId: cart.id,
+          deletedAt: null,
+        },
+      });
+
+      if (cartItems.length === 0) {
+        return res.status(400).send("Cart is empty");
+      }
+
+      orderInfo.totalPrice = cartItems.reduce((currentSum, item) => {
+        return currentSum + (item.price || 0) * item.quantity;
+      }, 0);
+
+      orderInfo.userId = currentUser.id;
+
+      // Используем транзакцию для атомарности операций
+      const order = await prisma.$transaction(async (tx) => {
+        // Создаём заказ (без указания ID - пусть DB генерирует)
+        const newOrder = await tx.order.create({
+          data: {
+            orderNumber: orderInfo.orderNumber,
+            totalPrice: orderInfo.totalPrice,
+            deliveryPrice: orderInfo.deliveryPrice,
+            isCompleted: orderInfo.isCompleted,
+            userId: orderInfo.userId,
+            branchId: orderInfo.branchId,
+            isPaid: orderInfo.isPaid,
+            status: orderInfo.status,
+          },
+        });
+
+        // Создаём все orderItems параллельно с Promise.all
+        await Promise.all(
+          cartItems.map((item) =>
+            tx.orderItem.create({
+              data: {
+                productId: item.productId,
+                orderId: newOrder.id,
+                price: item.price || 0,
+                status: newOrder.status,
+                quantity: item.quantity,
+              },
+            })
+          )
+        );
+
+        // Помечаем корзину как удалённую
+        await tx.cart.update({
+          where: { id: cart.id },
+          data: { deletedAt: new Date() },
+        });
+
+        // Помечаем все элементы корзины как удалённые
+        await tx.cartItem.updateMany({
+          where: { cartId: cart.id },
+          data: { deletedAt: new Date() },
+        });
+
+        // Обновляем счётчики продаж параллельно
+        await Promise.all(
+          cartItems.map((item) =>
+            tx.product.update({
+              where: { id: item.productId },
+              data: {
+                salesCount: { increment: item.quantity },
+              },
+            })
+          )
+        );
+
+        return newOrder;
+      });
+
+      res.status(201).json({
+        message: "Order created",
+        orderId: order.id
+      });
+
     } catch (error) {
       console.error(error);
       res.status(500).send("Server error. Please try later");
